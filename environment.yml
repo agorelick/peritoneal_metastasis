@@ -1,0 +1,43 @@
+name: peritoneal_metastasis
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bioconda::bioconductor-biobase
+  - bioconda::bioconductor-bsgenome.hsapiens.ucsc.hg19
+  - bioconda::bioconductor-genomicranges
+  - bioconda::bioconductor-qdnaseq
+  - conda-forge::r-adephylo
+  - conda-forge::r-ape
+  - conda-forge::r-binom
+  - conda-forge::r-biocmanager
+  - conda-forge::r-cowplot
+  - conda-forge::r-data.table
+  - conda-forge::r-ggplot2
+  - conda-forge::r-gmp
+  - conda-forge::r-here
+  - conda-forge::r-igraph
+  - conda-forge::r-phangorn
+  - conda-forge::r-phytools
+  - conda-forge::r-tidyverse
+  - bioconda::bioconductor-ggtree
+  - conda-forge::r-caper
+  - conda-forge::r-coin
+  - conda-forge::r-desctools
+  - conda-forge::r-ggpubr
+  - conda-forge::r-pheatmap
+  - conda-forge::r-reticulate
+  - conda-forge::r-treetools
+  - bioconda::bioconductor-phyloseq
+  - conda-forge::r-dendextend
+  - conda-forge::r-ggimage
+  - conda-forge::r-gplots
+  - conda-forge::r-pals
+  - conda-forge::r-treedist
+  - conda-forge::r-viridis
+  - conda-forge::r-devtools
+  - bioconda::bioconductor-ace
+  - bioconda::pyclone-vi
+  - bioconda::bioconductor-mutationalpatterns
+prefix: /Users/alexgorelick/miniforge3/envs/peritoneal_metastasis
