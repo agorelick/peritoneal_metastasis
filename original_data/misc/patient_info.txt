@@ -1,0 +1,29 @@
+PATIENT_ID	Cohort	Sex	Age	Diagnosis	Location	Stage	Tstage	Nstage	Mstage	MSI_status
+C38	"Naxerova, 2017"	M	80	pmCRC	Transverse	T4bN1aM1b	4	1	1	MSI
+C89	"Reiter, 2020"	F	66	pmCRC	Appendix	T4N2M1	4	2	1	MSS
+C146	Current	M	42	pmCRC	Ascending	T4N2M1	4	2	1	MSS
+C154	Current	F	61	pmCRC	Caecum	T4N2M1	4	2	1	MSI
+C157	Current	M	54	pmCRC	Rectum	yT3N2M1	3	2	1	MSS
+C158	Current	F	57	pmCRC	Caecum	yT3N2bM1b	3	2	1	MSS
+E1	Current	M	60	CRC	Ascending	T4N2	4	2	NA	MSS
+E2	Current	F	59	pmCRC	Sigmoid	T4N1M1	4	1	1	MSS
+E4	Current	F	72	pmCRC	Appendix	T4N2M1	4	2	1	MSS
+E5	Current	F	72	pmCRC	Caecum	T4N2M1	4	2	1	MSS
+E6	Current	F	59	lmCRC	Sigmoid	T4N1M1	4	1	1	MSS
+E7	Current	F	48	omCRC	Caecum	T3N0M1	3	0	1	MSS
+E8	Current	F	61	CRC	Ascending	T4N0	4	0	NA	MSS
+E9	Current	M	67	lmCRC	Caecum	T3N2M1	3	2	1	MSS
+E10	Current	F	58	pmCRC	Caecum	T4N2M1	4	2	1	MSS
+E11	Current	M	53	CRC	Sigmoid	T3N2	3	2	NA	MSS
+E12	Current	F	61	pmCRC	Caecum	T4N2M1	4	2	1	MSS
+E13	Current	F	50	pmCRC	Sigmoid	T4N1M1	4	1	1	MSS
+E14	Current	F	78	pmCRC	Ascending	T3N1M1	3	1	1	MSS
+E15	Current	M	61	pmCRC	Sigmoid	T4N2M1	4	2	1	MSS
+E16	Current	M	57	pmCRC	Caecum	T4N2M1	4	2	1	MSS
+E17	Current	M	61	pmCRC	Caecum	T4N2M1	4	2	1	MSS
+E18	Current	M	58	pmCRC	Ascending	T4N2M1	4	2	1	MSS
+E19	Current	F	67	CRC	Descending	T4N2	4	2	NA	MSS
+E20	Current	F	64	pmCRC	Sigmoid	T4N2M1	4	2	1	MSS
+Ea3	Current	F	61	pmCRC	Sigmoid	T4N+M1	4	1	1	MSS
+Eb3	Current	F	61	pmCRC	Descending	T3NxM0	3	x	0	MSS
+Ec3	Current	F	61	pmCRC	Transverse	T3NxM0	3	x	0	MSS
