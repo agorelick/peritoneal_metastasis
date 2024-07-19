@@ -914,6 +914,185 @@ ggsave(here('figures/fig_3i.pdf'))
 
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Fig 4b. sync metastases types vs t-stage
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+m <- read_distance_matrix(here('original_data/misc/lemmens_ijc_2011.txt'))
+m <- m[rownames(m)!='Tx',]
+m <- t(m)
+prop <- copy(m)
+for(i in 1:4) prop[,i] <- prop[,i] / sum(prop[,i])
+dat <- as.data.table(reshape2::melt(m))
+names(dat) <- c('mets','tstage','n')
+prop <- as.data.table(reshape2::melt(prop))
+names(prop) <- c('mets','tstage','prop')
+dat$prop <- prop$prop
+dat$mets <- factor(dat$mets, levels=rev(c('PC','PC+','Liv')))
+cols <- c('#4C86C6','#FAB31D','#af7d14')
+names(cols) <- c('Liv','PC','PC+')
+
+get_label_pos <- function(dat) {
+    dat <- dat[order(mets,decreasing=T),]
+    dat$pos <- (cumsum(dat$prop) - 0.5*dat$prop)
+    dat
+}
+dat2 <- dat[,get_label_pos(.SD), by=c('tstage')]
+
+p <- ggplot(dat2, aes(x=tstage, y=prop)) +
+    scale_x_discrete(expand=c(0,0)) +
+    scale_y_continuous(expand=c(0,0),limits=c(0,1),breaks=seq(0,1,by=0.25)) +
+    geom_bar(stat='identity', aes(fill=mets),color='black',linewidth=0.25) +
+    geom_text(data=dat2[prop > 0],aes(label=n,y=pos)) +
+    labs(x='T-stage',y='Fraction of patients',title='Fig 4b') + 
+    scale_fill_manual(values=cols, name='Synchronous\nmetastases') + 
+    theme_ang(base_size=12) +
+    theme(legend.position='right')
+ggsave(here('figures/fig_4b.pdf'))
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Fig 4e. permutation-test for association between mets and deep/luminal PTs
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+test <- function(i, res) {
+    if(i > 0) {
+        shuffled <- sample(res$vertical, replace=F)
+        res$vertical <- shuffled
+    }
+    res_deep <- res[vertical=='deep',]
+    res_deep <- res_deep[,c('sample1','sample2','vertical','distance'),with=F]
+    res_deep <- res_deep[order(sample1, distance, decreasing=F),]
+    res_deep <- res_deep[!duplicated(sample1),]
+    res_luminal <- res[vertical=='mucosal/luminal',]
+    res_luminal <- res_luminal[,c('sample1','sample2','vertical','distance'),with=F]
+    res_luminal <- res_luminal[order(sample1, distance, decreasing=F),]
+    res_luminal <- res_luminal[!duplicated(sample1),]
+    res_merged <- merge(res_deep[,c('sample1','distance'),with=F], 
+                        res_luminal[,c('sample1','distance'),with=F], 
+                        by='sample1')
+    res_merged[,ratio:=distance.x / distance.y]
+    ratio <- mean(res_merged$ratio)
+    list(i=i, ratio=ratio)
+}
+
+run_test <- function(res, R, ncpus) {
+    patient <- unique(res$patient)
+    group <- unique(res$group)
+    cohort <- unique(res$cohort)
+    message(paste0(patient,', ',group,', ',cohort)) 
+
+    ## run test for the patient
+    l <- mclapply(0:R, test, res, mc.cores=ncpus)
+    l <- rbindlist(l)
+    obs <- l$ratio[l$i==0]
+    exp <- l$ratio[l$i > 0]
+
+    ## get two-sided p-value
+    n <- R + 1
+    x1 <- sum(exp <= obs) + 1
+    p1 <- x1 / n
+    x2 <- sum(exp >= obs) + 1
+    p2 <- x2 / n
+    p_twosided <- 2*min(c(p1,p2))
+
+    ## get numbers for this patient
+    tmp <- res[!duplicated(sample2),]
+    n_deep <- sum(tmp$vertical=='deep')
+    n_lum <- sum(tmp$vertical=='mucosal/luminal')
+    n_met <- length(unique(res$sample1))
+
+    list(patient=patient, group=group, cohort=cohort, pval=p_twosided, obs=obs, exp=exp, 
+         exp_center=median(exp,na.rm=T), exp_mean=mean(exp,na.rm=T), n_deep=n_deep, n_lum=n_lum, n_met=n_met)
+}
+
+get_results <- function(l) l[names(l)!='exp']
+get_exp <- function(l) {
+    tmp <- l[names(l)!='exp']
+    out <- data.table(expected=l$exp)
+    for(f in names(tmp)) {
+        out[[f]] <- tmp[[f]]
+    }
+    out
+}
+
+si <- sample_info[in_collapsed==T]
+res <- get_met_specific_distances(si, ad_table, comparison='primary', distance='angular', return_tree=F)
+res <- merge(res, si[,c('Patient_ID','Real_Sample_ID','vertical','cohort'),with=F], by.x=c('patient','sample2'), by.y=c('Patient_ID','Real_Sample_ID'), all.x=T)
+res <- merge(res, si[,c('Patient_ID','Real_Sample_ID','group'),with=F], by.x=c('patient','sample1'), by.y=c('Patient_ID','Real_Sample_ID'), all.x=T)
+res <- res[group %in% c('Locoregional','Peritoneum','Liver')]
+res$plotgroup <- as.character(NA)
+res[(patient %in% c('C38','C89') | cohort=='peritoneal') & group=='Locoregional' & grepl('LN',sample1), plotgroup:='Lymph node']
+res[(patient %in% c('C38','C89') | cohort=='peritoneal') & group=='Locoregional' & grepl('TD',sample1), plotgroup:='Tumor deposit']
+res[(patient %in% c('C38','C89') | cohort=='peritoneal') & group=='Peritoneum', plotgroup:='Peritoneum']
+res[cohort %in% c('science','natgen','peritoneal') & group=='Liver', plotgroup:='Liver']
+res <- res[!is.na(plotgroup),]
+res[,id:=paste0(patient,', ',plotgroup)]
+res[,group:=plotgroup]
+res_split <- split(res, by='id')
+RNGkind("L'Ecuyer-CMRG") 
+set.seed(42)
+
+## this takes a long time to run
+required_file <- here('processed_data/misc/tissue_type_vs_depth_permutation_tests.txt')
+if(!file.exists(required_file)) {
+    l <- lapply(res_split, run_test, R=10000, ncpus=8)
+    results <- rbindlist(lapply(l, get_results))
+    results <- results[n_deep > 0 & n_lum > 0,]
+    results[,lfc:=log2(obs / exp_center)]
+    getq <- function(results) {
+        results$qval <- p.adjust(results$pval, method='BH')
+        results
+    }
+    results <- results[,getq(.SD),by=c('group')]
+    results[,nlog10p:=-log10(pval)]
+    results[,nlog10q:=-log10(qval)]
+    results[,frac_deep:=n_deep / (n_deep+n_lum)]
+    write_tsv(results,required_file)
+} else {
+    message('Using pre-processed file: ',required_file)
+    results <- fread(required_file)
+}
+
+results$group <- factor(results$group, levels=c('Lymph node','Tumor deposit','Liver','Peritoneum'))
+results[pval < 0.01 & qval >= 0.01, significance:='n.s.']
+results[qval < 0.01, significance:='p-adj < 0.01']
+results[is.na(significance),significance:='n.s.']
+cols <- c('#bfbfbf','red')
+names(cols) <- c('n.s.','p-adj < 0.01')
+
+p <- ggplot(results[group=='Peritoneum'], aes(x=lfc, y=nlog10q)) +
+    scale_y_continuous(limits=c(0,3.0)) +
+    scale_x_continuous(limits=c(-1.5,1.5)) +
+    geom_vline(xintercept=0, color='black', linewidth=0.5) +
+    geom_point(pch=21, size=2.5, aes(fill=significance), color='black', stroke=0.25) + 
+    geom_text_repel(data=results[pval < 0.05 & group=='Peritoneum'], 
+                    aes(label=patient, color=significance)) + 
+    scale_color_manual(values=cols, name='Significance') + 
+    scale_fill_manual(values=cols, name='Significance') + 
+    theme_bw(base_size=12) +
+    labs(x='Effect size', y='-log10(q-value)', title='Fig 4e')
+ggsave(here('figures/fig_4e.pdf'),width=5, height=3.5)
+
+p <- ggplot(results[group!='Peritoneum'], aes(x=lfc, y=nlog10q)) +
+    scale_y_continuous(limits=c(0,3.0)) +
+    scale_x_continuous(limits=c(-1.5,1.5)) +
+    geom_vline(xintercept=0, color='black', linewidth=0.5) +
+    geom_point(pch=21, size=2.5, aes(fill=significance), color='black', stroke=0.25) + 
+    geom_text_repel(data=results[pval < 0.05 & group!='Peritoneum'],
+                    aes(label=patient, color=significance)) + 
+    scale_color_manual(values=cols, name='Significance') + 
+    scale_fill_manual(values=cols, name='Significance') + 
+    facet_wrap(facets=~group, scale='free', ncol=4) +
+    theme_bw(base_size=12) +
+    labs(x='Effect size', y='-log10(q-value)', title='ED Fig 6') +
+    theme(legend.position='none')
+ggsave(here('figures/extended_data_fig_6.pdf'), width=9, height=3.5)
+
+
+
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -984,36 +1163,34 @@ markerlengths <- bind_rows(l)
 
 # functions to get markers that are present in all samples
 get_sampler_marker  <- function(sample_i, marker_tbl) {
-  
-  marker_tbl  %>% 
-    filter(sample==sample_i)  %>% 
-    pull(marker)  %>% 
-    unique()
+
+    marker_tbl  %>% 
+        filter(sample==sample_i)  %>% 
+        pull(marker)  %>% 
+        unique()
 }
 
 get_minimum_marker_table  <- function(subject_i, markerlengths){
-  
-  marker_tbl <-  markerlengths  %>% 
-    filter(subject==subject_i)  %>% 
-    group_by(sample)  %>% 
-    add_count(sample)  %>% 
-    ungroup()  %>% 
-    mutate(minimum_markers = max(n)*0.7) %>% 
-    filter(n>minimum_markers) 
-  
-  samples  <- unique(marker_tbl$sample)
-  marker_list  <- lapply(samples, get_sampler_marker, marker_tbl)
-  common_markers  <- Reduce(intersect, marker_list)
-  
-  n_common_markers  <- length(common_markers)
-  
-  markerlengths  %>% 
-    filter(subject==subject_i, marker %in% common_markers)   %>% 
-    group_by(sample)  %>% 
-    add_count(sample)  %>% 
-    filter(n==n_common_markers)  %>% 
-    select(-n)
-  
+
+    marker_tbl <-  markerlengths  %>% 
+        filter(subject==subject_i)  %>% 
+        group_by(sample)  %>% 
+        add_count(sample)  %>% 
+        ungroup()  %>% 
+        mutate(minimum_markers = max(n)*0.7) %>% 
+        filter(n>minimum_markers) 
+
+    samples  <- unique(marker_tbl$sample)
+    marker_list  <- lapply(samples, get_sampler_marker, marker_tbl)
+    common_markers  <- Reduce(intersect, marker_list)
+    n_common_markers  <- length(common_markers)
+
+    markerlengths  %>% 
+        filter(subject==subject_i, marker %in% common_markers)   %>% 
+        group_by(sample)  %>% 
+        add_count(sample)  %>% 
+        filter(n==n_common_markers)  %>% 
+        select(-n)
 }
 
 # finding all shared markers per patient
@@ -1023,42 +1200,36 @@ minimum_markerlengths <- bind_rows(minimum_marker_tbls)
 
 # find samples
 samples <- minimum_markerlengths$sample %>% unique
-
 combos_wide <- combn(samples, m= 2) %>% as.data.frame()
 
 ## make combo table longer
 combos <- data.frame(a = as.character(combos_wide[1, ]), b = as.character(combos_wide[2, ])) %>%
-  mutate(subject_a =  str_extract(a, "E[:digit:]+"), subject_b =  str_extract(b, "E[:digit:]+")) %>% 
-  filter(subject_a==subject_b) %>% 
-  select(1:2)
-
+    mutate(subject_a =  str_extract(a, "E[:digit:]+"), subject_b =  str_extract(b, "E[:digit:]+")) %>% 
+    filter(subject_a==subject_b) %>% 
+    select(1:2)
 
 # function to get L1 and cor for a specific combination of two samples
 get_l1_r_for_combination <- function(i, combos, markerlengths) {
-  
-  sample_a <- combos$a[i]
-  sample_b <- combos$b[i]
-  
-  markerlengths_a  <- markerlengths %>% 
-    dplyr::filter(sample==sample_a) %>% 
-    arrange(marker)  %>% 
-    pull(length)
-  
-  markerlengths_b  <- markerlengths %>% 
-    dplyr::filter(sample==sample_b) %>% 
-    arrange(marker)  %>% 
-    pull(length)
-  
-  n_markers_a  <- length(markerlengths_a)
-  n_markers_b  <- length(markerlengths_b)
-  
-  if (n_markers_a != n_markers_b) (error)
-  
-  l1  <- sum(abs(markerlengths_a - markerlengths_b))/n_markers_a
-  
-  r <- suppressWarnings(cor(markerlengths_a, markerlengths_b))
-  
-  list(a=sample_a, b=sample_b, l1=l1, r=r, marker=n_markers_a)
+    sample_a <- combos$a[i]
+    sample_b <- combos$b[i]
+
+    markerlengths_a  <- markerlengths %>% 
+        dplyr::filter(sample==sample_a) %>% 
+        arrange(marker)  %>% 
+        pull(length)
+
+    markerlengths_b  <- markerlengths %>% 
+        dplyr::filter(sample==sample_b) %>% 
+        arrange(marker)  %>% 
+        pull(length)
+
+    n_markers_a  <- length(markerlengths_a)
+    n_markers_b  <- length(markerlengths_b)
+    if (n_markers_a != n_markers_b) (error)
+    l1  <- sum(abs(markerlengths_a - markerlengths_b))/n_markers_a
+    r <- suppressWarnings(cor(markerlengths_a, markerlengths_b))
+
+    list(a=sample_a, b=sample_b, l1=l1, r=r, marker=n_markers_a)
 }
 
 # create a table for the cor  and L1 of marker lengths 
@@ -1067,15 +1238,14 @@ non_boot_l1 <- bind_rows(non_boot_l1)
 
 # saving table with only polyG correlation
 non_boot_l1 %>%
-  select(a, b, r) %>% 
-  write_tsv(here("processed_data/per_multitumor_cr.tsv"))
+    select(a, b, r) %>% 
+    write_tsv(here("processed_data/per_multitumor_cr.tsv"))
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# load coalescence-ratio data for multi-PT patients
+# ED Fig 2. multi-primary tumor origins
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-rm(list=ls())
-source(here('R/func.R'))
 
 d <- fread(here('processed_data/per_multitumor_cr.tsv'))
 d[grepl('^E10',a) & grepl('^E10',b), patient:='E10']
@@ -1111,7 +1281,6 @@ d <- rbindlist(lapply(1:n, order_combo, d))
 d[,comparison:=paste(t1,'vs',t2)]
 
 res <- d[patient!='E3',]
-#res[,patient:=paste(patient,'(A vs B)')]
 e3 <- d[patient=='E3']
 e3_a_vs_b <- e3[patient=='E3' & pt_a %in% c('PTa','PTb') & pt_b %in% c('PTa','PTb'),]
 e3_a_vs_b$patient <- 'E3 (A vs B)'
@@ -1120,20 +1289,52 @@ e3_a_vs_c$patient <- 'E3 (A vs C)'
 e3_b_vs_c <- e3[patient=='E3' & pt_a %in% c('PTb','PTc') & pt_b %in% c('PTb','PTc'),]
 e3_b_vs_c$patient <- 'E3 (B vs C)'
 res <- rbind(res, e3_a_vs_b, e3_a_vs_c, e3_b_vs_c)
-
-res$patient <- factor(res$patient)#, levels=c('E3','E10','E11','E15'))
+res$patient <- factor(res$patient)
+res$same_or_different <- factor(res$same_or_different, levels=c('Same','Different'))
 stat.test <- mywilcox2(res, r ~ same_or_different, paired=F, facet_field='patient', include_n=F)
-
+cols <- c('#bfbfbf','steelblue')
+names(cols) <- c('Same','Different')
 p <- ggplot(res, aes(x=same_or_different, y=r)) +
     scale_y_continuous(breaks=seq(0,1,by=0.25), limits=c(0,1.15)) +
-    geom_point(position=position_jitter(width=0.1, height=0, seed=42), pch=16, size=3.5, aes(color=same_or_different)) +
+    geom_point(position=position_jitter(width=0.1, height=0, seed=42), pch=21, size=3.5, 
+               aes(fill=same_or_different),color='white', stroke=0.25) +
+    scale_fill_manual(values=cols) + 
     geom_boxplot(fill=NA,outlier.shape=NA,color='black',width=0.4) +
     stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.08) +
-    facet_wrap(facets=~patient) +
+    facet_wrap(facets=~patient, scale='free_x') +
     guides(fill='none') +
     theme_bw(base_size=12) +
-    labs(x='Samples from same/different PT', y='Correlation coefficient')
-ggsave(here('figures/multi_primary_CRs.pdf'), width=8, height=6)
+    labs(x='Samples from same/different PT', y='Coalescence ratio', title='ED Fig 2. Multi-PT CRs')
+ggsave(here('figures/extended_fig_2.pdf'))
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ED Fig 3. Mouse data
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+m <- fread(here('original_data/misc/SDI_sliding_window_nBins_10_nIterations_10_RGB_sum_min_50_sameRGBexcluded_FALSE.csv'))
+m[organ=='CAECUM', group:='Primary']
+m[organ=='LIVER', group:='Liver']
+m[organ=='PERI', group:='Peritoneum']
+m$group <- factor(m$group, levels=c('Primary','Peritoneum','Liver'))
+pixel_size <- 1.25e-6 # 1 pixel = 1.25um
+pixel_area <- pixel_size^2 # um^2
+m[,region_size_mm2:=(n_pixels * pixel_area) * (1e3)^2] # 1m^2 = (1000mm)^2
+m$region_size_mm2 <- round(m$region_size_mm2, 3)
+m[region_size_mm2 < 1, region_size_mm2:=1]
+
+tst <- dunn_test_ES(m, SDI ~ group)
+p <- ggplot(m, aes(x=group, y=SDI))  +
+    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(size=region_size_mm2, fill=group), pch=21, color='black', stroke=0.25) + 
+    geom_boxplot(fill=NA, outlier.shape=NA, width=0.5) + 
+    theme_ang(base_size=12) + 
+    scale_size_area(breaks=c(1,5,10)) +   
+    scale_fill_manual(values=group_cols, name='Tissue type') +
+    stat_compare_means(method = "kruskal.test", label.y = 1.1, size=3, geom = "label") +
+    stat_pvalue_manual(tst, label='label', y.position=c(0.95,1.0,1.05), size=3, tip.length=0) +
+    labs(x='Sample type', y='SDI', title='ED Fig 3')
+ggsave(here('figures/extended_fig_3.pdf'),width=6, height=4.5)
+
 
 
 
@@ -5590,74 +5791,6 @@ p2 <- ggplot(xm, aes(x=group, y=value)) +
 
 p <- plot_grid(p1, p2, nrow=1, rel_widths=c(2,1))
 ggsave(here('figures/met_deep_luminal_mediandistance.pdf'),width=14, height=9)
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# 2024-06-20
-# Mouse data
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-m <- fread(here('original_data/misc/SDI_sliding_window_nBins_10_nIterations_10_RGB_sum_min_50_sameRGBexcluded_FALSE.csv'))
-m[organ=='CAECUM', group:='Primary']
-m[organ=='LIVER', group:='Liver']
-m[organ=='PERI', group:='Peritoneum']
-m$group <- factor(m$group, levels=c('Primary','Peritoneum','Liver'))
-pixel_size <- 1.25e-6 # 1 pixel = 1.25um
-pixel_area <- pixel_size^2 # um^2
-m[,region_size_mm2:=(n_pixels * pixel_area) * (1e3)^2] # 1m^2 = (1000mm)^2
-m$region_size_mm2 <- round(m$region_size_mm2, 3)
-m[region_size_mm2 < 1, region_size_mm2:=1]
-
-#stat.test <- mywilcox2(m, SDI ~ group, paired=F)
-tst <- dunn_test_ES(m, SDI ~ group)
-p <- ggplot(m, aes(x=group, y=SDI))  +
-    #geom_beeswarm(aes(size=region_size_mm2, color=group), pch=16) + 
-    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(size=region_size_mm2, color=group), pch=16) + 
-    geom_boxplot(fill=NA, outlier.shape=NA, width=0.5) + 
-    theme_ang(base_size=12) + 
-    scale_size(range=c(3,12)) +
-    #scale_size_area(max_size=10, breaks=seq(1,13,by=3)) +
-    scale_color_manual(values=group_cols, name='Tissue type') +
-    stat_compare_means(method = "kruskal.test", label.y = 1.05, geom = "label") +
-    stat_pvalue_manual(tst, label='label', y.position=c(0.95,1.0,1.05), tip.length=0) 
-ggsave(here('figures/LEGO_boxplot_with_ROI_size.pdf'),width=8, height=6)
-
-m <- fread(here('original_data/misc/SDI_sliding_window_nBins_10_nIterations_10_RGB_sum_min_50_sameRGBexcluded_FALSE.csv'))
-m[organ=='CAECUM', group:='Primary']
-m[organ=='LIVER', group:='Liver']
-m[organ=='PERI', group:='Peritoneum']
-m$group <- factor(m$group, levels=c('Primary','Peritoneum','Liver'))
-pixel_size <- 1.25e-6 # 1 pixel = 1.25um
-pixel_area <- pixel_size^2 # um^2
-m[,region_size_mm2:=(n_pixels * pixel_area) * (1e3)^2] # 1m^2 = (1000mm)^2
-m$region_size_mm2 <- round(m$region_size_mm2, 3)
-
-collapse <- function(m) {
-    size <- mean(m$region_size_mm2)
-    n <- nrow(m)
-    SDI <- sum(m$SDI * m$region_size_mm2) / sum(m$region_size_mm2)
-    #SDI <- median(m$SDI)
-    #SDI <- mean(m$SDI)
-    list(size=size, SDI=SDI, n=n)
-}
-m2 <- m[,collapse(.SD),by=c('mouse_ID','group')]
-m2[group=='Primary']
-tst <- dunn_test_ES(m2, SDI ~ group)
-#stat.test <- mywilcox2(m2, SDI ~ group, paired=F)
-m2[size < 1, size:=1]
-
-p <- ggplot(m2, aes(x=group, y=SDI))  +
-    scale_y_continuous(limits=c(0,1.05), breaks=seq(0,1,by=0.25)) + 
-    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(size=size, color=group), pch=16) + 
-    geom_boxplot(fill=NA, outlier.shape=NA, width=0.5) + 
-    theme_ang(base_size=12) + 
-    scale_size(range=c(3,12)) +
-    #scale_size_area(max_size=10, breaks=seq(1,13,by=3)) +
-    scale_color_manual(values=group_cols, name='Tissue type') +
-    stat_compare_means(method = "kruskal.test", label.y = 1.05, geom = "label") + 
-    stat_pvalue_manual(tst, label='label', y.position=c(0.95,1.0,1.05), tip.length=0) 
-ggsave(here('figures/LEGO_boxplot_with_ROI_size_avg.pdf'),width=8, height=6)
-
 
 
 
