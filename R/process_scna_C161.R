@@ -1,6 +1,6 @@
 source(here::here('R/func.R'))
 patient <- 'C161'
-sex <- 'male'
+sex <- 'female'
 
 fit_dir <- here(paste0('processed_data/copynumber/',patient,'/fits/'))
 if(!dir.exists(fit_dir)) dir.create(fit_dir, recursive=T)
@@ -171,16 +171,6 @@ message('Testing tree similarity ...')
 res <- test_tree_similarity(info$dm, ad, nperm=1e4, title=patient)
 write_tsv(res$data, here(paste0('processed_data/copynumber/',patient,'/',patient,'_cnv_polyg_tree_similarity_test.txt')))
 
-## plot a rotated version of the AD tree for the main figure
-tree_ad_rotated <- ape::rotate(tree_ad, node=47)
-p <- ggtree(tree_ad_rotated,layout='ape')
-p <- p %<+% groups
-p <- p + geom_tiplab(fontface=1,size=4,hjust=0,angle=0,aes(color=group))
-p <- p + scale_color_manual(values=group_cols,name='Tissue')
-p <- p + theme(legend.position='bottom') + guides(color='none')
-p <- p + labs(title='C161 AD')
-ggsave(here(paste0('figures/copynumber/tree_comparisons/',patient,'_angular_distance_unrooted_rotated.pdf')),plot=p)
-
 ## plot unrooted bootstrapped tree comparisons
 tree_ad_conf <- addConfidences(tree_ad, bstrees)
 tree_ad_conf$node.label <- round(100*tree_ad_conf$node.label)
@@ -203,6 +193,16 @@ tree_scna$node.label <- round(100*tree_scna$node.label)
 p_bstree_scna <- plot_bootstrapped_tree(tree_scna, groups, paste0(patient,' SCNA'))
 p <- plot_grid(p_bstree_scna, p_bstree_ad_conf, ncol=2)
 ggsave(here(paste0('figures/copynumber/bootstrapped_trees/',patient,'_scna_polyg_trees_bootstrapped.pdf')),plot=p, width=11,height=8)
+
+## plot a rotated version of the AD tree for the main figure
+tree_ad_rotated <- ape::rotate(tree_ad, node=47)
+p <- ggtree(tree_ad_rotated,layout='ape')
+p <- p %<+% groups
+p <- p + geom_tiplab(fontface=1,size=4,hjust=0,angle=0,aes(color=group))
+p <- p + scale_color_manual(values=group_cols,name='Tissue')
+p <- p + theme(legend.position='bottom') + guides(color='none')
+p <- p + labs(title='C161 AD')
+ggsave(here(paste0('figures/copynumber/tree_comparisons/',patient,'_angular_distance_unrooted_rotated.pdf')),plot=p)
 
 
 
