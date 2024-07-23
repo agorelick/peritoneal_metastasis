@@ -1,0 +1,130 @@
+Patient_ID	group	Real_Sample_ID	timing_order	in_collapsed	treatment	met_timing	met_treated	met_treated_type	resection_procedure
+E10	Liver	Liv1a	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E10	Liver	Liv1b	2	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E10	Liver	Liv1c	2	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E10	Peritoneum	Per1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per10	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per11	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per12	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per13	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per14	3	TRUE	resected after 2 lines of systemic chemotherapy	metachronous after synchronous	treated after untreated	systemic chemo	third resection
+E10	Peritoneum	Per2	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per3	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per4	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per5	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per6	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per7	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per8	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E10	Peritoneum	Per9	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E11	Liver	Liv1	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E11	Peritoneum	Per1	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E11	Peritoneum	Per2	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E11	Peritoneum	Per3a	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E11	Peritoneum	Per3b	1	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E11	Peritoneum	Per3c	1	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E13	Liver	Liv1a	1	TRUE	resected after no systemic chemotherapy	synchronous	treated	hipec	NA
+E13	Liver	Liv1b	1	FALSE	resected after no systemic chemotherapy	synchronous	treated	hipec	NA
+E13	Liver	Liv1c	1	FALSE	resected after no systemic chemotherapy	synchronous	treated	hipec	NA
+E13	Liver	Liv1d	1	FALSE	resected after no systemic chemotherapy	synchronous	treated	hipec	NA
+E13	Liver	Liv1e	1	FALSE	resected after no systemic chemotherapy	synchronous	treated	hipec	NA
+E13	Peritoneum	Per1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		NA
+E13	Peritoneum	Per2	2	TRUE	resected after no systemic chemotherapy	metachronous after synchronous	treated	hipec	NA
+E14	Liver	Liv1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per2	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per3	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per4	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per5	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per6	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E14	Peritoneum	Per7	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Liver	Liv1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per10	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per11	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per12	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per13	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per14	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per15	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per16	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per17	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per18	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per19	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per2	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per20	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per21	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per3	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per4	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per5	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per6	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per7	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per8	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	Per9	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E4	Peritoneum	PerOv1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Liver	Liv1	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E5	Liver	Liv2a	3	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv2b	3	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv2c	3	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv3a	3	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv3b	3	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv3c	3	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Liver	Liv3d	3	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E5	Peritoneum	Per1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per10	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per2	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per3	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per4	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per5	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per6	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per7	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per8	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	Per9	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E5	Peritoneum	PerOv1	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		first resection
+E6	Liver	Liv1a	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Liver	Liv1b	1	FALSE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Liver	Liv2a	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Liver	Liv2b	1	FALSE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Liver	Liv3a	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Liver	Liv3b	1	FALSE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E6	Peritoneum	Per1	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per2	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per3	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per4	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per5a	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per5b	2	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E6	Peritoneum	Per5c	2	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E8	Liver	Liv1	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E8	Peritoneum	Per1	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E8	Peritoneum	Per2	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E8	Peritoneum	Per3	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E8	Peritoneum	Per4	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E8	Peritoneum	Per5	1	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	second resection
+E8	Peritoneum	Per6a	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E8	Peritoneum	Per6b	2	FALSE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E8	Peritoneum	Per7	2	TRUE	resected after 1 line of systemic chemotherapy	metachronous	treated	systemic chemo	third resection
+E9	Liver	Liv1a	1	TRUE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E9	Liver	Liv1b	1	FALSE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E9	Liver	Liv1c	1	FALSE	resected after no systemic chemotherapy	synchronous	untreated		second resection
+E9	Liver	Liv2	5	TRUE	resected after no systemic chemotherapy	metachronous after synchronous	treated	hipec	sixth resection
+E9	Peritoneum	Per1	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per10	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per11	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per12	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per13	3	TRUE	resected after no systemic chemotherapy	metachronous	treated	hipec	fourth resection
+E9	Peritoneum	Per14a	4	TRUE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per14b	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per14c	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per15a	4	TRUE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per15b	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per15c	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per16a	4	TRUE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per16b	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per16c	4	FALSE	resected after no systemic chemotherapy	metachronous	treated	hipec	fifth resection
+E9	Peritoneum	Per2	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per3	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per4a	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per4b	2	FALSE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per5	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		fifth resection
+E9	Peritoneum	Per6	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per7	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per8	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection
+E9	Peritoneum	Per9	2	TRUE	resected after no systemic chemotherapy	metachronous	untreated		third resection

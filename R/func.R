@@ -1,44 +1,29 @@
+
+ncpus = 4
+options(repr.plot.width=7, repr.plot.height=7)
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
-# load necessary libraries
+# - load necessary libraries
+# - create expected directories for output
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
 message('Loading required libraries ...')
 packages <- c('ACE','ape','binom','caper','clipr','coin','colorspace','cowplot','data.table','dendextend','DescTools','dplyr','ggplot2','ggpubr','ggrepel','ggsignif','gmp','gplots','here','pals','parallel','patchwork','phangorn','phytools','QDNAseq','Quartet','RColorBrewer','readxl','reshape2','rstatix','tidyverse','TreeDist','TreeTools','viridis', 'ACE','adephylo','Biobase','GenomicRanges','ggtree','phyloseq', 'ggbeeswarm', 'rds')
 suppressMessages(trash <- lapply(packages, require, character.only = TRUE))
 
-message('Creating expected directories for processed data if they don\'t already exist ...')
-if(!dir.exists(here('processed_data/copynumber'))) dir.create(here('processed_data/copynumber'), recursive=T)
-if(!dir.exists(here('figures/copynumber/tree_comparisons'))) dir.create(here('figures/copynumber/tree_comparisons'),recursive=T)
-if(!dir.exists(here('figures/copynumber/distance_matrix_comparisons'))) dir.create(here('figures/copynumber/distance_matrix_comparisons'),recursive=T)
-if(!dir.exists(here('figures/copynumber/bootstrapped_trees'))) dir.create(here('figures/copynumber/bootstrapped_trees'),recursive=T)
-if(!dir.exists(here('figures/copynumber/heatmaps'))) dir.create(here('figures/copynumber/heatmaps'),recursive=T)
-
-
-# ~~~~~~~~~~~~~~~~~~
-# color schemes 
-# ~~~~~~~~~~~~~~~~~~
-
-group_cols <- c("#000000", "#008C45", "#EB5B2B", "#FAB31D", "#4C86C6", "#4C86C6", "#4C86C6")
-names(group_cols) <- c('Normal', 'Primary', 'Locoregional', 'Peritoneum', 'Lung', 'Liver', 'Distant (other)')
-
-## tissue color scheme
-cols <- c("#008C45", "#EB5B2B", "#EB5B2B", "#EB5B2B", "#FAB31D", "#FAB31D", "#4C86C6", "#4C86C6", "#4C86C6", "#4C86C6","#4C86C6")
-names(cols) <- c('PT','LN','TD','LR','Per','PerOv','Liv','Lun','OvH','dMet','PT-A')
-
-## get colors for depth
-cols_depth <- cols
-cols_depth_luminal <- lighten(cols, 0.15)
-names(cols_depth_luminal) <- paste0(names(cols_depth),'_luminal')
-cols_depth_deep <- darken(cols, 0.15)
-names(cols_depth_deep) <- paste0(names(cols_depth),'_deep')
-cols_depth <- c(cols_depth, cols_depth_deep, cols_depth_luminal)
-
-## timing colors
-cols_timing <- c('white','black')
-names(cols_timing) <- c('synchronous','metachronous')
-
-cols_depth2 <- c('#BA1822','#2F3080')
-names(cols_depth2) <- c('deep','mucosal/luminal')
+f=function(directory) {
+    if(!dir.exists(directory)) {
+        message('Creating directory ',directory)
+        dir.create(here('processed_data/copynumber'), recursive=T)
+    }
+}
+dirs <- c(here('processed_data/copynumber'),
+          here('figures/copynumber/tree_comparisons'),
+          here('figures/copynumber/distance_matrix_comparisons'),
+          here('figures/copynumber/bootstrapped_trees'),
+          here('figures/copynumber/heatmaps'))
+trash <- lapply(dirs, f)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1317,5 +1302,186 @@ get_distance_from_bootstrapped_trees_to_original_tree <- function(tree, bstrees)
     l$similarity <- l$s / l$Q
     l
 }
+
+
+subset_for_intralesion <- function(res) {
+    ## annotate each sample with the type+lesion, so that we can find comparisons of
+    ## different samples within the same type+lesion
+    bc1 <- parse_barcode(res$sample1)
+    bc1[,typelesion:=paste0(type,lesion)]
+    bc2 <- parse_barcode(res$sample2)
+    bc2[,typelesion:=paste0(type,lesion)]
+    res$typelesion1 <- bc1$typelesion
+    res$typelesion2 <- bc2$typelesion
+    res <- res[typelesion1==typelesion2]
+    res
+}
+
+
+make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F, show.timing=F, show.bsvals=F, tree.layout='ape', overwrite=F) { 
+    set.seed(42)
+    ad_file <- here(paste0('processed_data/angular_distance_matrices/',this.patient,'.txt'))
+    ad <- read_distance_matrix(ad_file)
+    outfile <- file.path(outdir,paste0(this.patient,'.pdf'))
+    if(file.exists(outdir) & overwrite==F) {
+        message(this.patient,': file already exists.')
+        return(NULL)
+    }
+
+    if(!dir.exists(outdir)) dir.create(outdir, recursive=T)
+    message(this.patient)
+    if(this.patient!='E3') {
+        si <- sample_info[Patient_ID %in% this.patient]
+    } else {
+        si <- sample_info[grepl('E[a-c]3',Patient_ID),]
+        si <- si[!duplicated(Sample_ID),]   
+    }
+    if(collapsed) si <- si[in_collapsed==T,]
+    valid_samples <- intersect(rownames(ad), si$Real_Sample_ID)
+    ad <- ad[valid_samples, valid_samples]
+
+    ## get the NJ tree
+    get_tree <- function(mat) { 
+        tree <- nj(mat)
+        tree <- ape::root(tree, outgroup=grep('^N',tree$tip.label))
+        tree$tip.label <- gsub('Normal','N',tree$tip.label)
+        tree
+    }
+    tree <- get_tree(ad)
+  
+    ## truncating normal branch if it's too long
+    truncated_normal <- F
+    normal_branch <- which(tree$edge[,2]==grep('^N',tree$tip.label))
+    other_lengths <- tree$edge.length[-normal_branch]
+
+    if(tree$edge.length[normal_branch] > 1.5*max(other_lengths)) {
+        truncated_normal <- T
+        tree$edge.length[normal_branch] <- 1.5*max(other_lengths)
+    }  
+    bsvals <- F 
+    bs_file <- here(paste0('processed_data/angular_distance_matrices_bootstrapped/',this.patient,'.rds'))
+
+    if(file.exists(bs_file) & show.bsvals==T) {
+        message('loading bootstrapped angular distance matrices ...')
+        bs_patient <- readRDS(bs_file)
+        ## subset each bs_matrix for the valid samples
+        f=function(bs_patient, valid_samples) { 
+            bs_patient[valid_samples, valid_samples]
+        }
+        bs_list <- lapply(bs_patient, f, valid_samples)
+        tree_list <- lapply(bs_list, get_tree)
+        bstrees <- TreeTools::as.multiPhylo(tree_list)
+        tree <- addConfidences(tree, bstrees) 
+        tree$node.label <- round(100*tree$node.label)
+        bsvals <- T
+    }
+
+    if(tree.layout=='ape' & show.bsvals==T) tree$node.label[tree$node.label < 50] <- NA
+    groups <- si[,c('Real_Sample_ID','group','vertical','met_timing'),with=F]
+    groups[met_timing=='metachronous after synchronous', met_timing:='metachronous']
+    setnames(groups,'Real_Sample_ID','label')
+    groups$label <- gsub('Normal','N',groups$label)
+    cols <- c(group_cols,'blue')
+    names(cols)[length(cols)] <- 'bsval'
+
+    p <- ggtree(tree, layout=tree.layout) 
+    p <- p %<+% groups
+    pd <- as.data.table(p$data)
+
+    if(bsvals==T) { 
+        pd[isTip==F,group:='bsval']
+    }
+
+    if(tree.layout=='ape') {
+        p <- p + geom_text_repel(data=pd, aes(x=x, y=y, label=label, color=group), min.segment.length=0.2,max.overlaps=100) 
+    } else {
+        p <- p + geom_text(data=pd, aes(x=x, y=y, label=label, color=group), hjust=-0.25, vjust=0.5)
+    }
+    p <- p + scale_color_manual(values=cols) + guides(color='none') 
+    p <- p + guides(color='none')
+
+    if(show.depth) {
+        pd <- as.data.table(p$data)
+        pd <- pd[!is.na(vertical) & vertical %in% c('deep','mucosal/luminal'),]
+        depth_cols <- c('#2e388e','#be1e2d'); names(depth_cols) <- c('mucosal/luminal','deep')
+        p <- p + geom_tippoint(data=pd, aes(fill=vertical), pch=21, stroke=0.25, color='black', size=2.5) + 
+            scale_fill_manual(values=depth_cols, name='PT region depth')
+    }
+
+    if(show.timing) {
+        pd <- as.data.table(p$data)
+        pd <- pd[!is.na(met_timing) & met_timing %in% c('synchronous','metachronous'),]
+        timing_shapes <- c(1,4); names(timing_shapes) <- c('synchronous','metachronous')
+        p <- p + geom_tippoint(data=pd, aes(pch=met_timing), size=2.5) + scale_shape_manual(values=timing_shapes,name='Metastasis timing')
+    }
+
+    tree_title <- paste0(this.patient,'. BS values 50%+ shown')
+    if(truncated_normal) tree_title <- paste0(tree_title,'. Normal branch truncated.')
+    p <- p + theme(legend.position='bottom') + ggtitle(tree_title)
+
+    if(tree.layout=='ape') 
+        ggsave(outfile, plot=p, width=10, height=8)
+    else
+        ggsave(outfile, plot=p, width=8, height=10)
+}
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# reload polyG and kim et al data for following
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sample_info <- fread(here('processed_data/sample_info.txt'))
+sample_info <- sample_info[cohort!='lung',]
+sample_info$met_treated_type <- ''
+sample_info[met_treated %in% c('hipec','hipec after untreated'), met_treated_type:='hipec']
+sample_info[met_treated %in% c('systemic chemo','systemic chemo after untreated'), met_treated_type:='systemic chemo']
+sample_info[met_treated %in% c('systemic chemo','hipec'), met_treated:='treated']
+sample_info[met_treated %in% c('systemic chemo after untreated','hipec after untreated'), met_treated:='treated after untreated']
+
+## load uncollapsed angular distance matrices into a named list
+load_ad_matrix <- function(patient) {
+    ad_file <- here(paste0('processed_data/angular_distance_matrices/',patient,'.txt'))
+    if(!file.exists(ad_file)) {
+        ad <- NULL
+    } else {
+        ad <- read_distance_matrix(ad_file)
+    }
+    ad
+}
+patients <- unique(sample_info[!grepl('CRC',Patient_ID), (Patient_ID)])
+ad_table <- lapply(patients, load_ad_matrix)
+names(ad_table) <- patients
+
+## get Kim et al WES tree topologies
+kim_node_distances <- load_kim_node_distances()
+
+
+# ~~~~~~~~~~~~~~~~~~
+# color schemes 
+# ~~~~~~~~~~~~~~~~~~
+
+group_cols <- c("#000000", "#008C45", "#EB5B2B", "#FAB31D", "#4C86C6", "#4C86C6", "#4C86C6")
+names(group_cols) <- c('Normal', 'Primary', 'Locoregional', 'Peritoneum', 'Lung', 'Liver', 'Distant (other)')
+
+## tissue color scheme
+cols <- c("#008C45", "#EB5B2B", "#EB5B2B", "#EB5B2B", "#FAB31D", "#FAB31D", "#4C86C6", "#4C86C6", "#4C86C6", "#4C86C6","#4C86C6")
+names(cols) <- c('PT','LN','TD','LR','Per','PerOv','Liv','Lun','OvH','dMet','PT-A')
+
+## get colors for depth
+cols_depth <- cols
+cols_depth_luminal <- lighten(cols, 0.15)
+names(cols_depth_luminal) <- paste0(names(cols_depth),'_luminal')
+cols_depth_deep <- darken(cols, 0.15)
+names(cols_depth_deep) <- paste0(names(cols_depth),'_deep')
+cols_depth <- c(cols_depth, cols_depth_deep, cols_depth_luminal)
+
+## timing colors
+cols_timing <- c('white','black')
+names(cols_timing) <- c('synchronous','metachronous')
+
+cols_depth2 <- c('#BA1822','#2F3080')
+names(cols_depth2) <- c('deep','mucosal/luminal')
+
 
 
