@@ -1,0 +1,18 @@
+Patient_ID	Real_Sample_ID	group	Sample_ID	tissue_type
+C157	LN1	Locoregional	C157LN4	Lymph node
+C157	LN2a	Locoregional	C157TD2a	Lymph node
+C157	LN2b	Locoregional	C157TD2b	Lymph node
+C157	Normal1	Normal	C157N1	Normal
+C157	PT1	Primary	C157P1	Primary
+C157	PT2	Primary	C157P2	Primary
+C157	PT3	Primary	C157P3	Primary
+C157	PT4	Primary	C157P4	Primary
+C157	PT5	Primary	C157P6	Primary
+C157	PT6	Primary	C157P9	Primary
+C157	PT7	Primary	C157P10	Primary
+C157	PT8	Primary	C157TD1	Primary
+C157	Per1	Peritoneum	C157B1	Peritoneum
+C157	Per2	Peritoneum	C157B2	Peritoneum
+C157	Per3	Peritoneum	C157Di1	Peritoneum
+C157	Per4	Peritoneum	C157Di2	Peritoneum
+C157	TD1	Locoregional	C157TD7	Tumor deposit

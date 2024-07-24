@@ -1091,10 +1091,6 @@ ggsave(here('figures/fig_4g.pdf'), width=6, height=4.5)
 # Fig 5d
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-#patient <- 'C100'
-#query_group <- 'Liver'
-#comparitor_group <- c('Liver','Distant')
-
 test_patient_met_level <- function(patient, si, ad_table, query_group, comparitor_group, ncpus) { 
     message(patient)
     si <- si[Patient_ID %in% patient & in_collapsed==T & group %in% c('Normal','Primary',query_group, comparitor_group)]
@@ -1628,7 +1624,7 @@ d <- d[!is.na(value)]
 d$group <- 'Primary'
 stat.test <- mywilcox2(d, value ~ primary, paired=F)
 
-p <- ggplot(d, aes(x=primary, y=value)) + 
+p1 <- ggplot(d, aes(x=primary, y=value)) + 
     geom_point(position=position_jitter(width=0.15,height=0,seed=2),pch=16,size=4,aes(color=group)) + 
     geom_boxplot(fill=NA,color='black',outlier.shape=NA) + 
     stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.3) +
@@ -1637,6 +1633,92 @@ p <- ggplot(d, aes(x=primary, y=value)) +
     theme_ang(base_size=12) +
     labs(x='Primary tumor',y='Intra-lesion angular distance') 
 ggsave(here('figures/ed_fig_XX.pdf'))
+
+
+if(FALSE) { 
+    ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
+    ad <- ad_table[['E10']]
+    da <- ad[grepl('PTa',rownames(ad)), grepl('PTa',colnames(ad))]
+    da[lower.tri(da,diag=T)] <- NA
+    da <- as.data.table(reshape2::melt(da))
+    db <- ad[grepl('PTb',rownames(ad)), grepl('PTb',colnames(ad))]
+    db[lower.tri(db,diag=T)] <- NA
+    db <- as.data.table(reshape2::melt(db))
+    da$primary <- 'PTa'
+    db$primary <- 'PTb'
+    d <- rbind(da, db)
+    d <- d[!is.na(value)]
+    d$group <- 'Primary'
+    stat.test <- mywilcox2(d, value ~ primary, paired=F)
+
+    p2 <- ggplot(d, aes(x=primary, y=value)) + 
+        geom_point(position=position_jitter(width=0.15,height=0,seed=2),pch=16,size=4,aes(color=group)) + 
+        geom_boxplot(fill=NA,color='black',outlier.shape=NA) + 
+        stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.3) +
+        scale_color_manual(values=group_cols) + 
+        guides(fill='none') +
+        theme_ang(base_size=12) +
+        labs(x='Primary tumor',y='Intra-lesion angular distance') 
+    #ggsave(here('figures/ed_fig_XX.pdf'))
+
+
+    ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
+    ad <- ad_table[['E11']]
+    da <- ad[grepl('PTa',rownames(ad)), grepl('PTa',colnames(ad))]
+    da[lower.tri(da,diag=T)] <- NA
+    da <- as.data.table(reshape2::melt(da))
+    db <- ad[grepl('PTb',rownames(ad)), grepl('PTb',colnames(ad))]
+    db[lower.tri(db,diag=T)] <- NA
+    db <- as.data.table(reshape2::melt(db))
+    da$primary <- 'PTa'
+    db$primary <- 'PTb'
+    d <- rbind(da, db)
+    d <- d[!is.na(value)]
+    d$group <- 'Primary'
+    stat.test <- mywilcox2(d, value ~ primary, paired=F)
+
+    p3 <- ggplot(d, aes(x=primary, y=value)) + 
+        geom_point(position=position_jitter(width=0.15,height=0,seed=2),pch=16,size=4,aes(color=group)) + 
+        geom_boxplot(fill=NA,color='black',outlier.shape=NA) + 
+        stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.3) +
+        scale_color_manual(values=group_cols) + 
+        guides(fill='none') +
+        theme_ang(base_size=12) +
+        labs(x='Primary tumor',y='Intra-lesion angular distance') 
+    #ggsave(here('figures/ed_fig_XX.pdf'))
+
+
+    ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
+    ad_file <- here(paste0('processed_data/angular_distance_matrices/E3.txt'))
+    ad <- read_distance_matrix(ad_file)
+    da <- ad[grepl('PTa',rownames(ad)), grepl('PTa',colnames(ad))]
+    da[lower.tri(da,diag=T)] <- NA
+    da <- as.data.table(reshape2::melt(da))
+    db <- ad[grepl('PTb',rownames(ad)), grepl('PTb',colnames(ad))]
+    db[lower.tri(db,diag=T)] <- NA
+    db <- as.data.table(reshape2::melt(db))
+    dc <- ad[grepl('PTc',rownames(ad)), grepl('PTc',colnames(ad))]
+    dc[lower.tri(dc,diag=T)] <- NA
+    dc <- as.data.table(reshape2::melt(dc))
+    da$primary <- 'PTa'
+    db$primary <- 'PTb'
+    dc$primary <- 'PTc'
+    d <- rbind(da, db, dc)
+    d <- d[!is.na(value)]
+    d$group <- 'Primary'
+    stat.test <- mywilcox2(d, value ~ primary, paired=F)
+
+    p3 <- ggplot(d, aes(x=primary, y=value)) + 
+        geom_point(position=position_jitter(width=0.15,height=0,seed=2),pch=16,size=4,aes(color=group)) + 
+        geom_boxplot(fill=NA,color='black',outlier.shape=NA) + 
+        stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.3) +
+        scale_color_manual(values=group_cols) + 
+        guides(fill='none') +
+        theme_ang(base_size=12) +
+        labs(x='Primary tumor',y='Intra-lesion angular distance') 
+    #ggsave(here('figures/ed_fig_XX.pdf'))
+
+}
 
 
 
