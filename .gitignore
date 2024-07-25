@@ -1,0 +1,10 @@
+.DS_Store
+.Rprofile
+
+figures
+processed_data/wes
+processed_data/polyG
+processed_data/copynumber
+
+
+

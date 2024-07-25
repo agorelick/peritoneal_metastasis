@@ -1,3 +1,7 @@
+
+
+
+
 source(here::here('R/func.R'))
 additional_packages <- c('igraph','rjson','reticulate','pheatmap','ggimage','MutationalPatterns','BSgenome','BSgenome.Hsapiens.UCSC.hg19')
 suppressMessages(trash <- lapply(additional_packages, require, character.only = TRUE))
@@ -134,7 +138,13 @@ maf[t_alt_count==0 | tcn==0, c('ccf_expected_copies','clonality'):=list(0,'ABSEN
 maf[clonality=='ABSENT', clonality_3cati:=0]
 maf[clonality=='SUBCLONAL', clonality_3cati:=1]
 maf[clonality=='CLONAL', clonality_3cati:=2]
-write_tsv(maf,here('processed_data/wes/C157_merged_filtered.ccf.oncokb.cleaned.maf'))
+
+## save CCF distance matrix
+dat <- data.table::dcast(ShortVariantID ~ Real_Sample_ID, value.var='ccf_expected_copies', data=maf)
+dat$Normal1 <- 0
+dat <- d2m(dat)
+dm <- as.matrix(dist(t(dat), method='euclidean'))
+write_distance_matrix(dm, here('processed_data/wes/ccf_distance_matrix_allsamples.txt'))
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # make CCF heatmap and NJ tree
@@ -142,8 +152,6 @@ write_tsv(maf,here('processed_data/wes/C157_merged_filtered.ccf.oncokb.cleaned.m
 
 ## heatmap showing the clonal status of mutations that are EVER clonal in any sample
 ## note: we remove sample LN2b as it has too many mutations and is likely artifactual
-
-#maf <- fread(here('processed_data/wes/C157_merged_filtered.ccf.oncokb.cleaned.maf'))
 summarize <- function(maf) {
     clonal=length(unique(maf$ShortVariantID[maf$clonality=='CLONAL']))
     subclonal=length(unique(maf$ShortVariantID[maf$clonality=='SUBCLONAL']))
@@ -168,7 +176,7 @@ tmp <- tmp[tm %in% ever_clonal,]
 ccf_matrix <- dcast( tm ~ Real_Sample_ID, value.var='ccf_expected_copies', data=tmp)
 ccf_matrix <- d2m(ccf_matrix)
 valid_mutations <- rownames(ccf_matrix)
-write_distance_matrix(ccf_matrix, here('processed_data/wes/C157_ccf_matrix.txt'))
+write_distance_matrix(ccf_matrix, here('processed_data/wes/sample_mutation_ccf_matrix.txt'))
 
 
 prep_data_for_pyclone <- function(maf, ccf_matrix) {
@@ -192,21 +200,21 @@ prep_data_for_pyclone <- function(maf, ccf_matrix) {
 
 plot_pyclone_clusters <- function(maf, file_pyclone_output, title) { 
     ## load output from pyclone to visualize each cluster's CCF in each sample
-    data_from_pyclone <- fread(file_pyclone_output)
-    data_from_pyclone[,ccf:=100*cellular_prevalence]
-    data_from_pyclone[,cluster_id:=cluster_id+1]
-    setnames(data_from_pyclone,'cluster_id','cluster')
-    clusters <- sort(unique(data_from_pyclone$cluster))
+    pyclone_output <- fread(file_pyclone_output)
+    pyclone_output[,ccf:=100*cellular_prevalence]
+    pyclone_output[,cluster_id:=cluster_id+1]
+    setnames(pyclone_output,'cluster_id','cluster')
+    clusters <- sort(unique(pyclone_output$cluster))
     cols <- brewer.pal(length(clusters), 'Paired'); names(cols) <- clusters
 
     ## similar plot but with the raw CCFs
-    data_from_pyclone <- merge(data_from_pyclone, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
-    data_from_pyclone$cluster <- factor(data_from_pyclone$cluster, levels=sort(unique(data_from_pyclone$cluster)))
-    data_from_pyclone$garbage <- 'No'
-    data_from_pyclone$garbage[data_from_pyclone$mutation_id %in% garbage_muts] <- 'Yes'
+    pyclone_output <- merge(pyclone_output, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
+    pyclone_output$cluster <- factor(pyclone_output$cluster, levels=sort(unique(pyclone_output$cluster)))
+    pyclone_output$garbage <- 'No'
+    pyclone_output$garbage[pyclone_output$mutation_id %in% garbage_muts] <- 'Yes'
 
-    ggplot(data_from_pyclone, aes(x=cluster, y=100*ccf_expected_copies)) +
-        geom_point(data=data_from_pyclone, aes(fill=cluster), color='white', size=2.5, pch=21, stroke=0.25, position=position_jitter(width=0.333,height=0, seed=42)) +
+    ggplot(pyclone_output, aes(x=cluster, y=100*ccf_expected_copies)) +
+        geom_point(data=pyclone_output, aes(fill=cluster), color='white', size=2.5, pch=21, stroke=0.25, position=position_jitter(width=0.333,height=0, seed=42)) +
         geom_boxplot(aes(fill=cluster), color='black', alpha=0.3, width=0.8, linewidth=0.25, outlier.shape=NA) +
         facet_wrap(facets=~sample_id) + 
         theme_fit(base_size=12) +
@@ -258,12 +266,12 @@ prep_data_for_pairtree <- function(maf, ccf_matrix, file_from_pyclone=NA) {
 
     } else {
         ## generate the params.json (fake json)
-        data_from_pyclone <- fread(file_from_pyclone)
-        data_from_pyclone <- data_from_pyclone[!duplicated(mutation_id),c('mutation_id','cluster_id'),with=F]
-        data_from_pyclone[,cluster_id:=cluster_id+1]
+        pyclone_output <- fread(file_from_pyclone)
+        pyclone_output <- pyclone_output[!duplicated(mutation_id),c('mutation_id','cluster_id'),with=F]
+        pyclone_output[,cluster_id:=cluster_id+1]
         tmp <- ssm[,c('id','name'),with=F]
         tmp$pos <- 1:nrow(tmp)
-        tmp <- merge(tmp, data_from_pyclone, by.x='name', by.y='mutation_id', all.x=T)
+        tmp <- merge(tmp, pyclone_output, by.x='name', by.y='mutation_id', all.x=T)
         tmp <- tmp[order(pos),]
         tmp$cluster_id <- factor(tmp$cluster_id, levels=sort(unique(tmp$cluster_id)))
         clusterdat <- copy(tmp)
@@ -287,14 +295,14 @@ pt <- prep_data_for_pairtree(maf, ccf_matrix)
 write_tsv(pt$ssm,here('processed_data/wes/data_for_pairtree.ssm'))
 cat(pt$params, file=here('processed_data/wes/data_for_pairtree.json'))
 
+#pairtree_output_garbage_flagged.json
 
 #### flag garbage
-# conda activate pairtree
-# ~/install/pairtree/bin/removegarbage data_for_pairtree.ssm data_for_pairtree.json data_for_pairtree_garbage_flagged.json --seed 123
+# pairtree/bin/removegarbage processed_data/wes/data_for_pairtree.ssm processed_data/wes/data_for_pairtree.json processed_data/wes/pairtree_output_garbage_flagged.json --seed 123
 
 
 ## create data for pyclone-vi clustering AFTER removing the garbage mutations
-j <- rjson::fromJSON(file=here('processed_data/wes/data_for_pairtree_garbage_flagged.json'))
+j <- rjson::fromJSON(file=here('processed_data/wes/pairtree_output_garbage_flagged.json'))
 garbage <- j$garbage
 tmp <- pt$ssm[,c('name','id'),with=F]
 garbage_muts <- as.character(tmp$name[tmp$id %in% garbage])
@@ -305,13 +313,12 @@ write_tsv(data_for_pyclone, here('processed_data/wes/data_for_pyclone.tsv'))
 
 
 ## run pyclone
-# conda activate pyclone-vi
-# pyclone-vi fit -i data_for_pyclone.tsv -o C157.h5 -c 20 -d beta-binomial -r 100 --seed 123
-# pyclone-vi write-results-file -i C157.h5 -o C157_pyclone_output.tsv
+# pyclone-vi fit -i processed_data/wes/data_for_pyclone.tsv -o processed_data/wes/pyclone_output.h5 -c 20 -d beta-binomial -r 100 --seed 123
+# pyclone-vi write-results-file -i processed_data/wes/pyclone_output.h5 -o processed_data/wes/pyclone_output.tsv
 
 
 ## plot the pyclone clustering results (boxplot of mutation raw CCFs per cluster, sample)
-file_pyclone_output <- here('processed_data/wes/C157_pyclone_output.tsv')
+file_pyclone_output <- here('processed_data/wes/pyclone_output.tsv')
 p <- plot_pyclone_clusters(maf_nogarbage, file_pyclone_output, title='Pyclone-vi clusters (clustering after garbage mutations are removed)')
 ggsave(here('figures/wes/pyclone_raw_ccfs.pdf'),width=11, height=8)
 
@@ -353,12 +360,11 @@ clusters$cluster_id <- factor(clusters$cluster_id, levels=unique(sort(clusters$c
 clusters$cluster_id <- as.integer(clusters$cluster_id)
 clusters$cluster_id <- clusters$cluster_id - 1
 clusters <- clusters[order(cluster_id, mutation_id, sample_id),]
-write_tsv(clusters, here('processed_data/wes/C157_pyclone_output_reclustered.tsv'))
+write_tsv(clusters, here('processed_data/wes/pyclone_output_reclustered.tsv'))
 
 
 ## create heatmaps for each cluster again after using the new clusters
-x <- fread(here('processed_data/wes/C157_pyclone_output_reclustered.tsv'))
-x <- merge(x, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
+x <- merge(clusters, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
 setnames(x,'cluster_id','cluster')
 x[,cluster:=cluster+1]
 x$cluster <- factor(x$cluster, levels=sort(unique(x$cluster)))
@@ -375,51 +381,24 @@ lapply(1:10, cluster_heatmap, x)
 
 
 ## plot CCF distributions for the new clusters
-p <- plot_pyclone_clusters(maf, here('processed_data/wes/C157_pyclone_output_reclustered.tsv'), title='C157 mutation clusters after manual review') 
+p <- plot_pyclone_clusters(maf, here('processed_data/wes/pyclone_output_reclustered.tsv'), title='C157 mutation clusters after manual review') 
 ggsave(here('figures/wes/pyclone_raw_ccfs_reclustered.pdf'),width=11, height=8)
 
 
 ## create data for orchard/pairtree using the new clusters
 maf_reclustered <- maf[tm %in% clusters$mutation_id,]
 ccf_matrix_reclustered <- ccf_matrix[unique(clusters$mutation_id),]
-write_distance_matrix(ccf_matrix_reclustered, here('processed_data/wes/C157_ccf_matrix_reclustered.txt'))
-pt <- prep_data_for_pairtree(maf_reclustered, ccf_matrix_reclustered, file_from_pyclone=here('processed_data/wes/C157_pyclone_output_reclustered.tsv'))
+write_distance_matrix(ccf_matrix_reclustered, here('processed_data/wes/sample_mutation_ccf_matrix_reclustered.txt'))
+pt <- prep_data_for_pairtree(maf_reclustered, ccf_matrix_reclustered, file_from_pyclone=here('processed_data/wes/pyclone_output_reclustered.tsv'))
 write_tsv(pt$ssm,here('processed_data/wes/data_for_pairtree_reclustered.ssm'))
 cat(pt$params, file=here('processed_data/wes/data_for_pairtree_reclustered.json'))
 
 
 # run orchard
-# conda activate orchard
-# python3 /Users/alexgorelick/install/orchard/bin/orchard data_for_pairtree_reclustered.ssm data_for_pairtree_reclustered.json C157_orchard_output.npz -p --seed 123 
+# python3 orchard/bin/orchard processed_data/wes/data_for_pairtree_reclustered.ssm processed_data/wes/data_for_pairtree_reclustered.json processed_data/wes/orchard_output.npz -p --seed 123 
 
-# conda activate pairtree
-# ~/install/pairtree/bin/plottree --runid C157 data_for_pairtree_reclustered.ssm data_for_pairtree_reclustered.json C157_orchard_output.npz C157_orchard_output_results.html --tree-json C157_orchard_clonetree.json --omit-plots pairwise_mle,pairwise_separate
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# the above works to create a reasonable clone tree
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-## CCF tree
-ccf_matrix <- read_distance_matrix(here('processed_data/wes/C157_ccf_matrix_reclustered.txt'))
-ccf_matrix <- cbind(ccf_matrix, Normal1=0)
-dm <- dist(t(ccf_matrix), method='euclidean')
-tree_nj <- nj(dm)
-tree_nj <- phytools::reroot(tree_nj, which(tree_nj$tip.label=='Normal1'))
-group_cols <- c("#000000","#008C45","#EB5B2B","#FAB31D","#FAB31D","#4C86C6","#4C86C6","#bfbfbf")
-names(group_cols) <- c('Normal','Primary','Locoregional','Peritoneum','Lung','Liver','Distant (other)','Other')
-
-p <- ggtree(tree_nj, layout='ape') # + theme_tree2() 
-map <- fread(here('original_data/wes/sample_map.txt'))
-map$sample_id <- gsub('C157','',map$sample_id)
-groups <- map[,c('Real_Sample_ID','group'),with=F]
-names(groups)[1] <- 'label'
-p <- p %<+% groups
-p <- p + geom_tiplab(aes(color=group), angle=0) 
-p <- p + scale_color_manual(values=group_cols,name='Tissue type') 
-p <- p + labs(x='NJ tree based on euclidean distance of CCF values') + theme(legend.position='none')
-ggsave(here('figures/wes/ccf_nj_tree.pdf'),width=10,height=6)
-
+# run pairtree to plot tree
+# pairtree/bin/plottree --runid C157 processed_data/wes/data_for_pairtree_reclustered.ssm processed_data/wes/data_for_pairtree_reclustered.json processed_data/wes/orchard_output.npz processed_data/wes/orchard_output_results.html --tree-json processed_data/wes/orchard_output_clonetree.json --omit-plots pairwise_mle,pairwise_separate
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -427,7 +406,7 @@ ggsave(here('figures/wes/ccf_nj_tree.pdf'),width=10,height=6)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## make a final heatmap using the set of variants retained in clusters and used in the clone tree
-res <- fread(here('processed_data/wes/C157_pyclone_output_reclustered.tsv'))
+res <- fread(here('processed_data/wes/pyclone_output_reclustered.tsv'))
 res[,cluster_id:=cluster_id+1]
 res <- res[,c('sample_id','mutation_id','cluster_id','cellular_prevalence'),with=F]
 setnames(res,'mutation_id','name')
@@ -458,9 +437,8 @@ mat <- t(as.matrix(ccf_matrix[,(3:ncol(ccf_matrix)),with=F]))
 colnames(mat) <- ccf_matrix$name
 cols <- data.frame(Cluster=ccf_matrix$cluster_id)
 row.names(cols) <- colnames(mat)
-heatmap_info <- pheatmap(mat, annotation_col = cols, annotation_colors = my_colors, filename=here('figures/wes/C157_clone_ccf_matrix_all.pdf'), width=20, height=10)
+heatmap_info <- pheatmap(mat, annotation_col = cols, annotation_colors = my_colors, filename=here('figures/ed_fig_1a_center.pdf'), width=20, height=10, main='ED Fig 1a, center')
 sample_levels <- heatmap_info$tree_row$labels[heatmap_info$tree_row$order]
-
 
 tmp <- rbind(mat, Normal1=0)
 dm <- dist(tmp, method='euclidean')
@@ -468,7 +446,7 @@ tree <- nj(dm)
 tree <- phytools::reroot(tree, which(tree$tip.label=='Normal1'))
 
 ## show the final clone tree, annotate the edges with the number of mutations
-j <- rjson::fromJSON(file=here('processed_data/wes/C157_orchard_clonetree.json'))
+j <- rjson::fromJSON(file=here('processed_data/wes/orchard_output_clonetree.json'))
 nc <- length(j$eta)-1
 cols <- c('darkgrey',brewer.pal(nc, 'Paired')); names(cols) <- c(0,1:nc)
 parents <- j$parents
@@ -480,12 +458,12 @@ md$pos <- 1:nrow(md)
 md$color <- cols[md$cluster]
 V(ig)$color <- md$color
 
-pdf(here('figures/wes/C157_clonetree.pdf'))
-plot(ig, layout = layout.reingold.tilford(ig, root=1))
+pdf(here('figures/ed_fig_1b.pdf'))
+plot(ig, layout = layout.reingold.tilford(ig, root=1), main='ED Fig 1b')
 dev.off()
 
 np <- reticulate::import("numpy")
-npz2 <- np$load(here("processed_data/wes/C157_orchard_output.npz"))
+npz2 <- np$load(here("processed_data/wes/orchard_output.npz"))
 eta <- npz2$f[['eta']]
 eta <- eta[1,,]
 samplenames <- as.character(npz2$f[['sampnames.json']])
@@ -501,15 +479,16 @@ d_eta <- as.data.table(reshape2::melt(eta))
 names(d_eta) <- c('cluster','sample','prop')
 d_eta$sample <- factor(d_eta$sample, levels=rev(sample_levels))
 d_eta$cluster <- factor(d_eta$cluster, levels=1:nc)
-write_tsv(d_eta, here('processed_data/wes/C157_clone_proportions.tsv'))
+write_tsv(d_eta, here('processed_data/wes/clone_proportions.tsv'))
 p <- ggplot(data=d_eta, aes(x=sample, y=prop)) +
     scale_x_discrete(expand=c(0,0)) +
     scale_y_continuous(expand=c(0,0), breaks=seq(0,1,by=0.25)) + 
     geom_bar(stat='identity', aes(fill=cluster)) + 
     scale_fill_manual(values=cluster_cols, name='Clone') +
     coord_flip() +
-    theme_ang(base_size=12)
-ggsave(here('figures/wes/C157_clone_barplot.pdf'),width=4,height=10)
+    theme_ang(base_size=12) +
+    ggtitle('ED Fig 1a, right')
+ggsave(here('figures/ed_fig_1a_right.pdf'),width=4,height=10)
 
 
 ## add in sample names/groups
@@ -521,7 +500,7 @@ setnames(groups,'Real_Sample_ID','label')
 p0 <- ggtree(tree, layout='rect') + theme_tree2()
 p0 <- p0 %<+% groups
 p0 <- p0 + scale_color_manual(values=group_cols,name='Tissue type') 
-p0 <- p0 + labs(subtitle='WES tree from CCFs')
+p0 <- p0 + labs(title='ED Fig 1c')
 p0 <- p0 + theme(legend.position='none')
 
 popfreq <- t(eta)
@@ -536,7 +515,7 @@ pies <- lapply(pies, function(g) g+scale_fill_manual(values = cluster_cols))
 
 p <- p0 + geom_inset(pies, width = .1, height = .1)
 p <- p + geom_tiplab(aes(color=group), angle=0, hjust=-1.5) 
-ggsave(here('figures/wes/ccf_tree_pies.pdf'),width=10,height=6)
+ggsave(here('figures/ed_fig_1c.pdf'),width=10,height=6)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -544,14 +523,12 @@ ggsave(here('figures/wes/ccf_tree_pies.pdf'),width=10,height=6)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## 2024-07-24
-
-options(repr.plot.width=7, repr.plot.height=7)
-dm_wes <- read_distance_matrix(here('processed_data/wes/C157_merged_filtered.ccf.oncokb.cleaned_ccf_distance_matrix.txt'))
+dm_wes <- read_distance_matrix(here('processed_data/wes/ccf_distance_matrix_allsamples.txt'))
 dm_scna <- read_distance_matrix(here('processed_data/copynumber/C157/C157_cnv_distance_matrix.txt'))
 dm_polyg <- read_distance_matrix(here('processed_data/angular_distance_matrices/C157.txt'))
 
 ## plot 3 C157 trees unrooted
-groups <- fread(here('original_data/C157_WES/C157_WES_sample_map.txt'), select=c('Real_Sample_ID','group'))
+groups <- fread(here('original_data/wes/sample_map.txt'), select=c('Real_Sample_ID','group'))
 names(groups)[1] <- 'label'
 group_cols <- c("#000000","#008C45","#EB5B2B","#FAB31D","#FAB31D","#4C86C6","#4C86C6","#bfbfbf")
 names(group_cols) <- c('Normal','Primary','Locoregional','Peritoneum','Lung','Liver','Distant (other)','Other')
@@ -565,35 +542,33 @@ tree0$edge.length[1] <- 6 ## scale the LN2b branch
 p0 <- ggtree(tree0, layout='ape')
 p0 <- p0 %<+% groups
 p0 <- p0 + scale_color_manual(values=group_cols,name='Tissue type') 
-p0 <- p0 + labs(subtitle='WES tree from CCFs')
+p0 <- p0 + labs(subtitle='WES', title='ED Fig 1d')
 p0 <- p0 + theme(legend.position='none')
-p0 <- p0 + geom_tiplab(aes(color=group), angle=0) 
+p0 <- p0 + geom_tiplab(aes(color=group), angle=0, size=3.5) 
 
 tree1 <- nj(dm_polyg)
 tree1 <- phytools::reroot(tree1, which(tree1$tip.label=='Normal1'))
 p1 <- ggtree(tree1, layout='ape')
 p1 <- p1 %<+% groups
 p1 <- p1 + scale_color_manual(values=group_cols,name='Tissue type') 
-p1 <- p1 + labs(subtitle='Poly-G tree')
+p1 <- p1 + labs(subtitle='Poly-G', title='')
 p1 <- p1 + theme(legend.position='none')
-p1 <- p1 + geom_tiplab(aes(color=group), angle=1) 
+p1 <- p1 + geom_tiplab(aes(color=group), angle=1, size=3.5) 
 
 tree2 <- nj(dm_scna)
 tree2 <- phytools::reroot(tree2, which(tree2$tip.label=='Normal1'))
 tree2 <- ape::rotate(tree2, 26)
 tree2 <- ape::rotate(tree2, 19)
 
-plot(tree2,type='u'); nodelabels()
-
 p2 <- ggtree(tree2, layout='ape')
 p2 <- p2 %<+% groups
 p2 <- p2 + scale_color_manual(values=group_cols,name='Tissue type') 
-p2 <- p2 + labs(subtitle='SCNA tree')
+p2 <- p2 + labs(subtitle='SCNA', title='')
 p2 <- p2 + theme(legend.position='none')
-p2 <- p2 + geom_tiplab(aes(color=group), angle=1) 
+p2 <- p2 + geom_tiplab(aes(color=group), angle=1, size=3.5) 
 
 p <- plot_grid(p0, p1, p2, nrow=1)
-ggsave(here('figures/unused_fig_c157_ccf_vs_polyg_vs_scna_tree_comparison.pdf'),width=7, height=6)
+ggsave(here('figures/ed_fig_1d.pdf'),width=9, height=6)
 
 
 
