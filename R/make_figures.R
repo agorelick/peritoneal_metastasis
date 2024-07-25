@@ -4,8 +4,6 @@ source(here::here('R/func.R'))
 # make annotated poly-G trees for each patient
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sample_info <- fread(here('processed_data/sample_info.txt'))
-sample_info <- sample_info[cohort!='lung',]
 valid_patients <- unique(sample_info[cohort %in% c('science','natgen','peritoneal') & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
 valid_patients <- sort(c(valid_patients,'E3'))
 trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures/polyg_phylogenies'), show.bsvals=T)
@@ -16,25 +14,24 @@ trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F,
 # Fig1a
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sample_info <- fread(here('processed_data/sample_info.txt'))
-sample_info <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
+si <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
 
 ## merge the E3 multi-primary data into a single patient
-ea3 <- sample_info[Patient_ID=='Ea3',]
-eb3 <- sample_info[Patient_ID=='Eb3',]
-ec3 <- sample_info[Patient_ID=='Ec3',]
+ea3 <- si[Patient_ID=='Ea3',]
+eb3 <- si[Patient_ID=='Eb3',]
+ec3 <- si[Patient_ID=='Ec3',]
 E3 <- rbind(ea3, eb3, ec3)
 E3$Patient_ID <- 'E3'
 E3 <- E3[!duplicated(Sample_ID),]
-sample_info <- sample_info[!Patient_ID %in% c('Ea3','Eb3','Ec3'),]
-sample_info <- rbind(sample_info, E3)
+si <- si[!Patient_ID %in% c('Ea3','Eb3','Ec3'),]
+si <- rbind(si, E3)
 
 tabulate <- function(info) {
     lesions <- sum(info$in_collapsed==T)
     samples <- nrow(info)
     list(lesions=lesions, samples=samples)
 }
-tbl <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','tissue_type')]
+tbl <- si[,tabulate(.SD),by=c('Patient_ID','group','tissue_type')]
 
 f=function(id) {
     s <- strsplit(id,'')[[1]]
@@ -53,7 +50,7 @@ tbl_samples <- data.table::dcast(Patient_ID ~ tissue_type, value.var='samples', 
 tbl_samples[is.na(tbl_samples)] <- 0
 tbl_samples <- as.data.table(reshape2::melt(tbl_samples,id.var='Patient_ID'))
 tbl_samples[!is.na(value) & value > 0, label:=value]
-tbl_samples <- merge(tbl_samples, sample_info[!duplicated(tissue_type),c('tissue_type','group'),with=F], by.x='variable', by.y='tissue_type',all.x=T)
+tbl_samples <- merge(tbl_samples, si[!duplicated(tissue_type),c('tissue_type','group'),with=F], by.x='variable', by.y='tissue_type',all.x=T)
 tbl_samples[value==0, group:=NA]
 tbl_samples$variable <- factor(tbl_samples$variable, levels=rev(c('Normal','Primary','Lymph node','Tumor deposit','Peritoneum','Lung','Liver','Ovary (hematogenous)','Lymph node (distant)')))
 tbl_samples$Patient_ID <- factor(tbl_samples$Patient_ID, levels=(info$id))
@@ -62,7 +59,7 @@ tbl_lesions <- data.table::dcast(Patient_ID ~ tissue_type, value.var='lesions', 
 tbl_lesions[is.na(tbl_lesions)] <- 0
 tbl_lesions <- as.data.table(reshape2::melt(tbl_lesions,id.var='Patient_ID'))
 tbl_lesions[!is.na(value) & value > 0, label:=value]
-tbl_lesions <- merge(tbl_lesions, sample_info[!duplicated(tissue_type),c('tissue_type','group'),with=F], by.x='variable', by.y='tissue_type',all.x=T)
+tbl_lesions <- merge(tbl_lesions, si[!duplicated(tissue_type),c('tissue_type','group'),with=F], by.x='variable', by.y='tissue_type',all.x=T)
 tbl_lesions[value==0, group:=NA]
 tbl_lesions$variable <- factor(tbl_lesions$variable, levels=rev(c('Normal','Primary','Lymph node','Tumor deposit','Peritoneum','Lung','Liver','Ovary (hematogenous)','Lymph node (distant)')))
 tbl_lesions$Patient_ID <- factor(tbl_lesions$Patient_ID, levels=(info$id))
@@ -89,11 +86,11 @@ p_heatmap_samples <- ggplot(tbl_samples[!is.na(group)], aes(x=Patient_ID, y=vari
     labs(x=NULL,y='Samples') +
     theme(axis.text.x=element_blank(), axis.ticks.x=element_blank(), axis.line.x=element_blank(),legend.position='none')
 
-sample_info[met_timing %in% c('metachronous','metachronous after synchronous'), met_timing:='metachronous']
-sample_info[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
+si[met_timing %in% c('metachronous','metachronous after synchronous'), met_timing:='metachronous']
+si[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
 cols <- group_cols[c('Locoregional','Peritoneum','Distant (other)')]
 names(cols)[3] <- 'Distant (any)'
-tbl_timed <- sample_info[met_timing %in% c('synchronous','metachronous'),tabulate(.SD),by=c('Patient_ID','group','tissue_type','met_timing')]
+tbl_timed <- si[met_timing %in% c('synchronous','metachronous'),tabulate(.SD),by=c('Patient_ID','group','tissue_type','met_timing')]
 tbl_timed[met_timing=='synchronous', lesions:=-1*lesions]
 tbl_timed$Patient_ID <- factor(tbl_timed$Patient_ID, levels=(info$id))
 
@@ -113,7 +110,7 @@ vertical_tabulate <- function(info) {
     luminal <- sum(info$vertical=='mucosal/luminal')
     list(deep=deep, luminal=luminal)
 }
-depth <- sample_info[group=='Primary',vertical_tabulate(.SD),by=c('Patient_ID')]
+depth <- si[group=='Primary',vertical_tabulate(.SD),by=c('Patient_ID')]
 depth[,deep := -1*deep]
 depth <- data.table::melt(depth, id.var=c('Patient_ID'))
 depth[variable=='deep',variable:='Deep']
@@ -239,7 +236,6 @@ ggsave(here('figures/fig_1a.pdf'),width=9, height=9)
 # Fig 1c-d. C161 SCNA tree
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-sample_info <- fread(here('processed_data/sample_info.txt'))
 groups <- sample_info[Patient_ID=='C161',c('Real_Sample_ID','group'),with=F]
 setnames(groups,'Real_Sample_ID','label')
 
@@ -482,13 +478,13 @@ per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
 liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
 
 si2.1 <- sample_info[Patient_ID %in% per_patients & (group %in% c('Normal','Primary') | tissue_type=='Lymph node') & in_collapsed==T]
-si2.1 <- si2.1[group %in% c('Normal','Primary') | (met_treated=='untreated' & met_timing=='synchronous')]
+si2.1 <- si2.1[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')]
 res2.1 <- get_met_specific_distances(si2.1, ad_table, comparison='rds', distance='node', return_tree=F)
 res2.1 <- res2.1[type=='Met',]
 res2.1$group <- 'Locoregional'
 res2.1$tissue_type <- 'Lymph node'
 si2.2 <- sample_info[Patient_ID %in% per_patients & (group %in% c('Normal','Primary') | tissue_type=='Tumor deposit') & in_collapsed==T]
-si2.2 <- si2.2[group %in% c('Normal','Primary') | (met_treated=='untreated' & met_timing=='synchronous')]
+si2.2 <- si2.2[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')]
 res2.2 <- get_met_specific_distances(si2.2, ad_table, comparison='rds', distance='node', return_tree=F)
 res2.2 <- res2.2[type=='Met',]
 res2.2$group <- 'Locoregional'
@@ -497,7 +493,7 @@ res2 <- rbind(res2.1, res2.2)
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum') & in_collapsed==T] 
-si1 <- si1[group %in% c('Normal','Primary') | (met_treated=='untreated' & met_timing=='synchronous')]
+si1 <- si1[group %in% c('Normal','Primary') | (!met_treated_type %in% c('systemic chemo','hipec') & met_timing=='synchronous')]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='rds', distance='node', return_tree=F)
 res1 <- res1[type=='Met',]
 res1$group <- 'Peritoneum'
@@ -505,7 +501,7 @@ res1$tissue_type <- 'Peritoneum'
 
 # verified that this does not exclude post-HIPEC-only liv mets
 si3 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver') & in_collapsed==T]
-si3 <- si3[group %in% c('Normal','Primary') | (met_treated=='untreated' & met_timing=='synchronous')] 
+si3 <- si3[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')] 
 res3 <- get_met_specific_distances(si3, ad_table, comparison='rds', distance='node', return_tree=F)
 res3 <- res3[type=='Met',]
 res3$group <- 'Liver'
@@ -513,7 +509,7 @@ res3$tissue_type <- 'Liver'
 
 ## supplement the liver data with rds from kim et al wxs-based trees
 si4 <- sample_info[grepl('^CRC',Patient_ID) & group %in% c('Normal','Primary','Liver') & in_collapsed==T & Patient_ID %in% liv_patients]
-si4 <- si4[group %in% c('Normal','Primary') | (met_treated=='untreated' & met_timing=='synchronous')]
+si4 <- si4[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')]
 res4 <- get_met_specific_distances(si4, kim_node_distances, comparison='rds', distance='node', return_tree=F)
 res4 <- res4[type=='Met',]
 res4$group <- 'Liver'
@@ -549,17 +545,16 @@ ggsave(here('figures/fig_3a.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Fig 3b. PM RDS: synchronous/untreated vs metachronous/treated
+# Fig 3b. PM RDS: synchronous/untreated vs metachronous/chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated %in% c('treated','treated after untreated') & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
+si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='rds', distance='node', return_tree=F)
 res1 <- res1[type=='Met',]
 res1$group <- 'Peritoneum'; 
 res1$class <- 'Metachronous/\ntreated'
 
-si2 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & 
-                   (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated=='untreated' & met_timing=='synchronous'))]
+si2 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & !met_treated_type %in% c('systemic chemo','hipec') & met_timing=='synchronous'))]
 res2 <- get_met_specific_distances(si2, ad_table, comparison='rds', distance='node', return_tree=F)
 res2 <- res2[type=='Met',]
 res2$group <- 'Peritoneum'; 
@@ -583,17 +578,16 @@ ggsave(here('figures/fig_3b.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Fig 3c. PM inter-lesion AD: synchronous/untreated vs metachronous/treated
+# Fig 3c. PM inter-lesion AD: synchronous/untreated vs metachronous/chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated %in% c('treated','treated after untreated') & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
+si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res1 <- res1[group1=='Metastasis' & group2=='Metastasis']
 res1$group <- 'Peritoneum'; 
 res1$class <- 'Metachronous/\ntreated'
 
-si2 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & 
-                   (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated=='untreated' & met_timing=='synchronous'))]
+si2 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & !met_treated_type %in% c('systemic chemo','hipec') & met_timing=='synchronous'))]
 res2 <- get_met_specific_distances(si2, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
 res2$group <- 'Peritoneum'; 
@@ -623,7 +617,7 @@ liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1.1 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver') & in_collapsed==T] 
-si1.1 <- si1.1[group %in% c('Normal','Primary') | (met_timing=='synchronous' & met_treated=='untreated')]
+si1.1 <- si1.1[group %in% c('Normal','Primary') | (met_timing=='synchronous' & met_treated_type!='systemic chemo')]
 res1.1 <- get_met_specific_distances(si1.1, ad_table, comparison='rds', distance='node', return_tree=F)
 res1.1 <- res1.1[type=='Met',]
 res1.1$group <- 'Liver'
@@ -631,7 +625,7 @@ res1.1$class <- 'Synchronous, untreated'
 
 ## supplement the liver data with rds from kim et al wxs-based trees
 si1.2 <- sample_info[grepl('^CRC',Patient_ID) & group %in% c('Normal','Primary','Liver') & in_collapsed==T]
-si1.2 <- si1.2[group %in% c('Normal','Primary') | (met_timing=='synchronous' & met_treated=='untreated')]
+si1.2 <- si1.2[group %in% c('Normal','Primary') | (met_timing=='synchronous' & met_treated_type!='systemic chemo')]
 res1.2 <- get_met_specific_distances(si1.2, kim_node_distances, comparison='rds', distance='node', return_tree=F)
 res1.2 <- res1.2[type=='Met',]
 res1.2$group <- 'Liver'
@@ -680,7 +674,7 @@ si1 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary
 si1 <- si1[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res1 <- res1[group1=='Metastasis' & group2=='Metastasis']
-res1$group1 <- 'Liver'; res1$group2 <- 'Liver'; res1$class <- 'Synchronous, no systemic chemo'
+res1$group1 <- 'Liver'; res1$group2 <- 'Liver'; res1$class <- 'Synchronous, untreated'
 
 ## subset the sample_info for N, PT, and Liv; get met-spec node distance from peritoneum to normal
 si2 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver') & in_collapsed==T] 
@@ -690,7 +684,7 @@ res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
 res2$group1 <- 'Liver'; res2$group2 <- 'Liver'; res2$class <- 'Metachronous, systemic chemo'
 
 res <- rbind(res1, res2)
-res$class <- factor(res$class, levels=c('Synchronous, no systemic chemo','Metachronous, systemic chemo'))
+res$class <- factor(res$class, levels=c('Synchronous, untreated','Metachronous, systemic chemo'))
 stat.test <- mywilcox2(res, distance ~ class, paired=F)
 
 p <- ggplot(res, aes(x=class, y=distance)) + 
@@ -706,12 +700,12 @@ ggsave(here('figures/fig_3e.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# Fig 3h. PM vs Liver (synchronous, no chemo) intra-lesion AD
+# Fig 3h. PM vs Liver (synchronous, untreated) intra-lesion AD
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum')] 
-si1 <- si1[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo' & met_timing=='synchronous')]
+si1 <- si1[group %in% c('Normal','Primary') | (!met_treated_type %in% c('systemic chemo','hipec') & met_timing=='synchronous')]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res1 <- res1[group1=='Metastasis' & group2=='Metastasis']
 res1$group1 <- 'Peritoneum'; res1$group2 <- 'Peritoneum'; res1$class <- 'Per:Per'
@@ -746,17 +740,24 @@ ggsave(here('figures/fig_3h.pdf'))
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum')] 
-si1 <- si1[group %in% c('Normal','Primary') | (met_treated=='untreated')]
+si1 <- si1[group %in% c('Normal','Primary') | (!met_treated_type %in% c('systemic chemo','hipec'))]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res1 <- res1[group1=='Metastasis' & group2=='Metastasis']
 res1$group1 <- 'Peritoneum'; res1$group2 <- 'Peritoneum'; res1$class <- 'Per:Per'
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si2 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver')]
-si2 <- si2[group %in% c('Normal','Primary') | (met_treated=='untreated')]
+si2 <- si2[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo')]
 res2 <- get_met_specific_distances(si2, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
 res2$group1 <- 'Liver'; res2$group2 <- 'Liver'; res2$class <- 'Liv:Liv'
+
+# wrong version
+#si2 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver')]
+#si2 <- si2[group %in% c('Normal','Primary') | (met_treated=='untreated')]
+#res2 <- get_met_specific_distances(si2, ad_table, comparison='pairwise', distance='angular', return_tree=F)
+#res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
+#res2$group1 <- 'Liver'; res2$group2 <- 'Liver'; res2$class <- 'Liv:Liv'
 
 res <- rbind(res1, res2)
 res <- subset_for_intralesion(res)

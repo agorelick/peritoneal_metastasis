@@ -1433,11 +1433,11 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
 
 sample_info <- fread(here('processed_data/sample_info.txt'))
 sample_info <- sample_info[cohort!='lung',]
-sample_info$met_treated_type <- ''
-sample_info[met_treated %in% c('hipec','hipec after untreated'), met_treated_type:='hipec']
-sample_info[met_treated %in% c('systemic chemo','systemic chemo after untreated'), met_treated_type:='systemic chemo']
-sample_info[met_treated %in% c('systemic chemo','hipec'), met_treated:='treated']
-sample_info[met_treated %in% c('systemic chemo after untreated','hipec after untreated'), met_treated:='treated after untreated']
+#sample_info$met_treated_type <- ''
+#sample_info[met_treated %in% c('hipec','hipec after untreated'), met_treated_type:='hipec']
+#sample_info[met_treated %in% c('systemic chemo','systemic chemo after untreated'), met_treated_type:='systemic chemo']
+#sample_info[met_treated %in% c('systemic chemo','hipec'), met_treated:='treated']
+#sample_info[met_treated %in% c('systemic chemo after untreated','hipec after untreated'), met_treated:='treated after untreated']
 
 ## load uncollapsed angular distance matrices into a named list
 load_ad_matrix <- function(patient) {
