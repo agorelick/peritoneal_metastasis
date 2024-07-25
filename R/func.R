@@ -1426,6 +1426,124 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
 }
 
 
+run_chemo_simulation <- function(sim, cells_start, cells_end, chemo_death, b, d) { 
+    message('Simulation: ',sim)
+    
+    # Define relevant parameters
+    clones <- c(1:10)   # create some categorical clones
+    PMclones <- 5
+    Lclones <- 5
+    number_lesions <- 4
+
+    diversity_PM <- sample(clones,PMclones,replace=F) # choose clones that can populate PM
+    diversity_L <- sample(clones,Lclones,replace=F) # choose clones that can populate L
+
+    ## for PMs, clone prob is uniform (or 0 for non-PM-seeding clones)
+    PMprobs <- rep(0,length(clones))
+    PMprobs[clones %in% diversity_PM] <- rep(1,PMclones)/PMclones
+
+    ## for Ls, clone prob is skewed (or 0 for non-PM-seeding clones)
+    Lprobs <- rep(0,length(clones))
+    lowprob <- 0.05 / (Lclones-1)
+    highprob <- 0.95
+    Lprobs[clones %in% diversity_L] <- c(highprob, rep(lowprob, Lclones-1))
+
+    # create pre-treatment PM and L lesions. These are tables of the number of cells in each lesion corresponding to each clone
+    PMs <- t(rmultinom(number_lesions, cells_start, prob = PMprobs))
+    PMs <- apply(PMs, 2, as.numeric)
+    Ls <- t(rmultinom(number_lesions, cells_start, prob = Lprobs))
+    Ls <- apply(Ls, 2, as.numeric)
+    rownames(PMs) <- paste0('lesion',1:4)
+    colnames(PMs) <- paste0('clone',1:10)
+    rownames(Ls) <- paste0('lesion',1:4)
+    colnames(Ls) <- paste0('clone',1:10)
+
+    # name rows/cols for diagnosis
+    PMs_pc <- matrix(nrow=nrow(PMs), ncol=ncol(PMs))
+    Ls_pc <- matrix(nrow=nrow(Ls), ncol=ncol(Ls))
+    PMs_regrow <- matrix(nrow=nrow(PMs), ncol=ncol(PMs))
+    Ls_regrow <- matrix(nrow=nrow(Ls), ncol=ncol(Ls))
+    names(PMprobs) <- colnames(PMs)
+    names(Lprobs) <- colnames(Ls)
+
+    # kill 2/3 of cells in each PM lesion
+    for(i in 1:nrow(PMs)) {
+        cell_bucket_prechemo <- rep(clones, PMs[i,])
+        total_cells <- sum(PMs[i,])
+        cells_surviving <- round(total_cells*chemo_death)
+        cell_bucket_postchemo <- sample(cell_bucket_prechemo, size=cells_surviving, replace=F)
+        cell_bucket_postchemo <- factor(cell_bucket_postchemo, levels=clones)
+        tbl <- table(cell_bucket_postchemo) 
+        PMs_pc[i,] <- as.integer(tbl)
+    }
+
+    # kill 2/3 of cells in each L lesion
+    for(i in 1:nrow(Ls)) {
+        cell_bucket_prechemo <- rep(clones, Ls[i,])
+        total_cells <- sum(Ls[i,])
+        cells_surviving <- round(total_cells*chemo_death)
+        cell_bucket_postchemo <- sample(cell_bucket_prechemo, size=cells_surviving, replace=F)
+        cell_bucket_postchemo <- factor(cell_bucket_postchemo, levels=clones)
+        tbl <- table(cell_bucket_postchemo) 
+        Ls_pc[i,] <- as.integer(tbl)
+    }
+
+    # my original attempt to regrow lesions by killing off/dividing large chunks of cells at once
+    PMs_regrow <- regrow_lesions(PMs_pc, prob_death=d/(b+d), max_cells=cells_end)
+    Ls_regrow <- regrow_lesions(Ls_pc, prob_death=d/(b+d), max_cells=cells_end)
+
+    inter_lesion_diversity  <- function(mat) {
+        dm <- dist(mat,method="euclidian")
+        median(dm) 
+    }
+
+    # pre-treatment intra-lesion diversity
+    pm_intra_prechemo <- median(diversity(PMs,MARGIN=1))
+    l_intra_prechemo <- median(diversity(Ls,MARGIN=1))
+
+    # pre-treatment, post-chemo intra-lesion diversity
+    pm_intra_postchemo_preregrowth <- median(diversity(PMs_pc,MARGIN=1))
+    l_intra_postchemo_preregrowth <- median(diversity(Ls_pc,MARGIN=1))
+
+    # post-regrowth intra-lesion diversity
+    pm_intra_postregrowth <- median(diversity(PMs_regrow,MARGIN=1))
+    l_intra_postregrowth <- median(diversity(Ls_regrow,MARGIN=1))
+
+    # pre-treatment inter-lesion diversity
+    pm_inter_prechemo <- inter_lesion_diversity(PMs)
+    l_inter_prechemo <- inter_lesion_diversity(Ls)
+
+    # pre-treatment, post-chemo inter-lesion diversity
+    pm_inter_postchemo_preregrowth <- inter_lesion_diversity(PMs_pc)
+    l_inter_postchemo_preregrowth <- inter_lesion_diversity(Ls_pc)
+
+    # post-regrowth inter-lesion diversity
+    pm_inter_postregrowth <- inter_lesion_diversity(PMs_regrow)
+    l_inter_postregrowth <- inter_lesion_diversity(Ls_regrow)
+
+    intra_data <- rbind(
+                        data.frame(group='PM', setting='Pre-chemo', het_type='Intra-lesion', value=pm_intra_prechemo),
+                        data.frame(group='PM', setting='Post-chemo, pre-regrowth', het_type='Intra-lesion', value=pm_intra_postchemo_preregrowth),
+                        data.frame(group='PM', setting='Post-chemo, post-regrowth', het_type='Intra-lesion', value=pm_intra_postregrowth),
+                        data.frame(group='L', setting='Pre-chemo', het_type='Intra-lesion', value=l_intra_prechemo),
+                        data.frame(group='L', setting='Post-chemo, pre-regrowth', het_type='Intra-lesion', value=l_intra_postchemo_preregrowth),
+                        data.frame(group='L', setting='Post-chemo, post-regrowth', het_type='Intra-lesion', value=l_intra_postregrowth))
+
+    inter_data <- rbind(
+                        data.frame(group='PM', setting='Pre-chemo', het_type='Inter-lesion', value=pm_inter_prechemo),
+                        data.frame(group='PM', setting='Post-chemo, pre-regrowth', het_type='Inter-lesion', value=pm_inter_postchemo_preregrowth),
+                        data.frame(group='PM', setting='Post-chemo, post-regrowth', het_type='Inter-lesion', value=pm_inter_postregrowth),
+                        data.frame(group='L', setting='Pre-chemo', het_type='Inter-lesion', value=l_inter_prechemo),
+                        data.frame(group='L', setting='Post-chemo, pre-regrowth', het_type='Inter-lesion', value=l_inter_postchemo_preregrowth),
+                        data.frame(group='L', setting='Post-chemo, post-regrowth', het_type='Inter-lesion', value=l_inter_postregrowth))
+
+    out <- rbind(intra_data, inter_data)
+    out$simulation <- sim
+    out
+}
+
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # reload polyG and kim et al data for following

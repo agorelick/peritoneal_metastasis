@@ -9,7 +9,6 @@ valid_patients <- sort(c(valid_patients,'E3'))
 trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures/polyg_phylogenies'), show.bsvals=T)
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig1a
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1580,6 +1579,55 @@ p <- ggplot(m, aes(x=group, y=SDI))  +
     stat_pvalue_manual(tst, label='label', y.position=c(0.95,1.0,1.05), size=3, tip.length=0) +
     labs(x='Sample type', y='SDI', title='ED Fig 3')
 ggsave(here('figures/ed_fig_3.pdf'),width=6, height=4.5)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# ED Fig 4. Chemo simulation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+library(vegan)
+library(Rcpp)
+library(RcppArmadillo)
+library(parallel)
+sourceCpp(here('R/chemo_simulation.cpp'))
+
+set.seed(42)
+RNGkind("L'Ecuyer-CMRG")
+l <- mclapply(1:100, run_chemo_simulation, cells_start=1e6, cells_end=1e8, chemo_death=0.20, b=0.25, d=0.24, mc.cores=4)
+d <- rbindlist(l)
+d <- d[setting!='Post-chemo, pre-regrowth']
+d[setting=='Post-chemo, post-regrowth', setting:='Post-regrowth']
+d$setting <- factor(d$setting, levels=c('Pre-chemo','Post-regrowth'))
+d[group=='PM', group:='Peritoneum']
+d[group=='L', group:='Liver']
+d$group <- factor(d$group, levels=c('Peritoneum','Liver'))
+
+p_inter <- ggplot(d[het_type=='Inter-lesion'], aes(x=group, y=value)) +
+    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(color=group), pch=16, size=3) +
+    geom_boxplot(fill=NA, outlier.shape=NA, color='black') +
+    scale_color_manual(values=group_cols,name='Organ') + 
+    facet_wrap(facets=~setting) +
+    labs(y='Median Euclidean distance between lesions', title='ED Fig 4b') +
+    theme_bw(base_size=10) + 
+    theme(legend.position='none')
+
+p_intra <- ggplot(d[het_type=='Intra-lesion'], aes(x=group, y=value)) +
+    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(color=group), pch=16, size=3) +
+    geom_boxplot(fill=NA, outlier.shape=NA, color='black') +
+    scale_color_manual(values=group_cols,name='Organ') + 
+    facet_wrap(facets=~setting) +
+    labs(y='Intra-lesion heterogeneity (SDI)', title='ED Fig 4c') + 
+    theme_bw(base_size=10) +
+    theme(legend.position='none')
+
+p <- plot_grid(p_inter, p_intra, nrow=2)
+ggsave(here('figures/ed_fig_4bc.pdf'),width=5, height=6)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Fig XX. AD purity
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
 
 
 
