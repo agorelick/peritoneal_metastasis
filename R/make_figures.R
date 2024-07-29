@@ -526,6 +526,7 @@ write_tsv(out,here('figures_and_tables/supp_table4.txt'))
 # Fig 1c-d. C161 SCNA tree
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+sample_info <- fread(here('processed_data/sample_info.txt'))
 groups <- sample_info[Patient_ID=='C161',c('Real_Sample_ID','group'),with=F]
 setnames(groups,'Real_Sample_ID','label')
 
@@ -608,6 +609,8 @@ ggsave(here('figures_and_tables/fig_1e.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 2E. RDS compared between tissue types
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+source(here('R/func.R')) # run this again to re-load the sample_info data
 
 ## define applicable patients (peritoneum, with per cohort + C38, C89; and all liver-met patients)
 per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
