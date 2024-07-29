@@ -40,16 +40,18 @@ With the peritoneal_metastasis environment activated, run the install some addit
 Rscript R/get_prerequisites.R
 ```
 
-### XXXX Process lpWGS copy number data
+## 2. Make all figures from the paper
 
-With the peritoneal_metastasis environment activated, run the install some additional dependencies into R. 
 ```
-Rscript R/process_scna_C146.R
-Rscript R/process_scna_C146.R
-Rscript R/process_scna_C146.R
-Rscript R/process_scna_C146.R
-Rscript R/process_scna_C146.R
-Rscript R/process_scna_C146.R
+Rscript R/make_figures.R
+```
+
+
+### (Optional) Process lpWGS copy number data
+
+The `make_figures.R` script uses preprocessed copy number data which are already included in this github repo. However, the complete set of copy number data data for each of the six patients with lpWGS can be processed with the following command (note, this may 5-10 minutes to complete).
+```
+Rscript R/process_scna_data.R
 ```
 
 ## Remove all newly-added software
