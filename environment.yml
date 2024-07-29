@@ -1,5 +1,6 @@
 name: peritoneal_metastasis
 channels:
+  - https://conda.anaconda.org/gurobi
   - conda-forge
   - bioconda
   - defaults
@@ -40,4 +41,6 @@ dependencies:
   - bioconda::bioconductor-ace
   - bioconda::pyclone-vi
   - bioconda::bioconductor-mutationalpatterns
+  - conda-forge::r-data.tree
+  - r::r-rgl
 prefix: /Users/alexgorelick/miniforge3/envs/peritoneal_metastasis
