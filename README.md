@@ -14,7 +14,7 @@ git clone git@github.com:agorelick/peritoneal_metastasis.git
 
 ### 1.1 Install a version of the Conda package manager
 
-If you already have Conda installed, proceed to the next step (1.2). Otherwise, install a version of Conda. I prefer miniforge, which is a minimal version of Mamba, a C++ re-implementation of Conda for improved speed. Instructions for download here: https://github.com/conda-forge/miniforge#mambaforge.
+If you already have Conda installed, proceed to the next step (1.2). Otherwise, install a version of Conda. I prefer **miniforge**, which is a minimal version of Mamba, a C++ re-implementation of Conda for improved speed. Instructions for download here: https://github.com/conda-forge/miniforge#mambaforge.
 
 **Note**: This has so far only been tested on macOS (v11.5.2), but it should work with little/no modification on any UNIX-based operating system.
 
@@ -24,7 +24,7 @@ Change directory to the cloned peritoneal_metastasis repo, then install the cond
 
 ```
 cd peritoneal_metastasis
-conda env create -f environment.yml
+conda env create -n "peritoneal_metastasis" -f environment.yml
 ```
 
 Once the installation is complete, activate the peritoneal_metastasis environment.
@@ -40,8 +40,6 @@ With the peritoneal_metastasis environment activated, run the install some addit
 Rscript R/get_prerequisites.R
 ```
 
-
-
 ### XXXX Process lpWGS copy number data
 
 With the peritoneal_metastasis environment activated, run the install some additional dependencies into R. 
@@ -53,4 +51,20 @@ Rscript R/process_scna_C146.R
 Rscript R/process_scna_C146.R
 Rscript R/process_scna_C146.R
 ```
+
+## Remove all newly-added software
+
+All newly software installed can be removed by removiing the peritoneal_metastasis conda environment. First, detach the conda environment if you have not already:
+```
+conda deactivate peritoneal_metastasis
+```
+
+Next, remove the environment:
+```
+conda remove --name peritoneal_metastasis --all
+```
+
+If you also want to remove the conda application, see the instructions for the version of Conda you installed. If you used _miniforge_ with the link I suggested above, see the **Uninstallation** directions on the same website: https://github.com/conda-forge/miniforge#mambaforge.
+
+
 
