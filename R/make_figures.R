@@ -1461,74 +1461,86 @@ cols[3] <- '#d8d8d8'
 names(cols) <- c('Shared (95%)','Shared (80%)','n.s.','Distinct (80%)','Distinct (95%)')
 
 # Fig 5d-i, common/distinct origin of PMs and distant mets
-si <- copy(sample_info)
-si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
-per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
-liv_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
-valid_patients <- intersect(per_patients, liv_patients)
-valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
-RNGkind("L'Ecuyer-CMRG") 
-set.seed(42)
-l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Peritoneum', comparitor_group='Distant', ncpus=ncpus)
-res <- rbindlist(l)
-res[,query:='Peritoneum']
-res[,comparitor:='Distant']
-write_tsv(res,here('processed_data/min_distance_ratios_pm_to_dm_vs_pt.txt'))
+expected_file <- here('processed_data/min_distance_ratios_pm_to_dm_vs_pt.txt')
+if(!file.exists(expected_file)) {
+    si <- copy(sample_info)
+    si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
+    per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
+    liv_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
+    valid_patients <- intersect(per_patients, liv_patients)
+    valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
+    RNGkind("L'Ecuyer-CMRG") 
+    set.seed(42)
+    l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Peritoneum', comparitor_group='Distant', ncpus=ncpus)
+    res <- rbindlist(l)
+    res[,query:='Peritoneum']
+    res[,comparitor:='Distant']
+    write_tsv(res,expected_file)
+}
 
 # Fig 5d-ii, common/distinct origin of LNs and distant mets
-si <- copy(sample_info)
-si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
-per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
-si[Patient_ID %in% per_patients & tissue_type %in% 'Lymph node', group:='Lymph node']
-ln_patients <- unique(si[group=='Lymph node','Patient_ID',with=F][[1]])
-dm_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
-valid_patients <- intersect(ln_patients, dm_patients)
-valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
-RNGkind("L'Ecuyer-CMRG") 
-set.seed(42)
-l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Lymph node', comparitor_group='Distant', ncpus=ncpus)
-res <- rbindlist(l)
-res[,query:='Lymph node']
-res[,comparitor:='Distant']
-write_tsv(res,here('processed_data/min_distance_ratios_ln_to_dm_vs_pt.txt'))
+expected_file <- here('processed_data/min_distance_ratios_ln_to_dm_vs_pt.txt')
+if(!file.exists(expected_file)) {
+    si <- copy(sample_info)
+    si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
+    per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
+    si[Patient_ID %in% per_patients & tissue_type %in% 'Lymph node', group:='Lymph node']
+    ln_patients <- unique(si[group=='Lymph node','Patient_ID',with=F][[1]])
+    dm_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
+    valid_patients <- intersect(ln_patients, dm_patients)
+    valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
+    RNGkind("L'Ecuyer-CMRG") 
+    set.seed(42)
+    l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Lymph node', comparitor_group='Distant', ncpus=ncpus)
+    res <- rbindlist(l)
+    res[,query:='Lymph node']
+    res[,comparitor:='Distant']
+    write_tsv(res,expected_file)
+}
 
 # Fig 5d-iii, common/distinct origin of TDs and distant mets
-si <- copy(sample_info)
-si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
-per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
-si[Patient_ID %in% per_patients & tissue_type %in% 'Tumor deposit', group:='Tumor deposit']
-td_patients <- unique(si[group=='Tumor deposit','Patient_ID',with=F][[1]])
-dm_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
-valid_patients <- intersect(td_patients, dm_patients)
-valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
-RNGkind("L'Ecuyer-CMRG") 
-set.seed(42)
-l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Tumor deposit', comparitor_group='Distant', ncpus=ncpus)
-res <- rbindlist(l)
-res[,query:='Tumor deposit']
-res[,comparitor:='Distant']
-write_tsv(res,here('processed_data/min_distance_ratios_td_to_dm_vs_pt.txt'))
+expected_file <- here('processed_data/min_distance_ratios_td_to_dm_vs_pt.txt')
+if(!file.exists(expected_file)) {
+    si <- copy(sample_info)
+    si[group %in% c('Liver','Lung','Distant (other)'), group:='Distant']
+    per_patients <- unique(si[group=='Peritoneum','Patient_ID',with=F][[1]])
+    si[Patient_ID %in% per_patients & tissue_type %in% 'Tumor deposit', group:='Tumor deposit']
+    td_patients <- unique(si[group=='Tumor deposit','Patient_ID',with=F][[1]])
+    dm_patients <- unique(si[group=='Distant','Patient_ID',with=F][[1]])
+    valid_patients <- intersect(td_patients, dm_patients)
+    valid_patients <- valid_patients[grepl('Mm',valid_patients)==F]
+    RNGkind("L'Ecuyer-CMRG") 
+    set.seed(42)
+    l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Tumor deposit', comparitor_group='Distant', ncpus=ncpus)
+    res <- rbindlist(l)
+    res[,query:='Tumor deposit']
+    res[,comparitor:='Distant']
+    write_tsv(res,expected_file)
+}
 
 # Fig 5d-iv, common/distinct origin of Liver mets and other DMs (which may include Liver mets) 
-si <- copy(sample_info)
-count_mets <- function(qc) {
-    n <- length(unique(qc$Real_Sample_ID))
-    list(n=n)
+expected_file <- here('processed_data/min_distance_ratios_liv_to_dm_vs_pt.txt')
+if(!file.exists(expected_file)) {
+    si <- copy(sample_info)
+    count_mets <- function(qc) {
+        n <- length(unique(qc$Real_Sample_ID))
+        list(n=n)
+    }
+    counts <- si[in_collapsed==T,count_mets(.SD),by=c('Patient_ID','group')]
+    counts <- data.table::dcast(Patient_ID ~ group, value.var='n', data=counts)
+    counts[is.na(counts)] <- 0
+    counts[,Distant_non_liver:=Lung + `Distant (other)`]
+    valid_patients <- unique(counts[Liver >= 2 | (Liver==1 & Distant_non_liver >= 1), (Patient_ID)])
+    valid_patients <- valid_patients[grepl('CRC',valid_patients)==F]
+    si[group %in% c('Lung','Distant (other)'), group:='Distant']
+    RNGkind("L'Ecuyer-CMRG") 
+    set.seed(42)
+    l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Liver', comparitor_group=c('Liver','Distant'), ncpus=ncpus)
+    res <- rbindlist(l)
+    res[,query:='Liver']
+    res[,comparitor:='Distant']
+    write_tsv(res,expected_file)
 }
-counts <- si[in_collapsed==T,count_mets(.SD),by=c('Patient_ID','group')]
-counts <- data.table::dcast(Patient_ID ~ group, value.var='n', data=counts)
-counts[is.na(counts)] <- 0
-counts[,Distant_non_liver:=Lung + `Distant (other)`]
-valid_patients <- unique(counts[Liver >= 2 | (Liver==1 & Distant_non_liver >= 1), (Patient_ID)])
-valid_patients <- valid_patients[grepl('CRC',valid_patients)==F]
-si[group %in% c('Lung','Distant (other)'), group:='Distant']
-RNGkind("L'Ecuyer-CMRG") 
-set.seed(42)
-l <- lapply(valid_patients, test_patient_met_level, si, ad_table, query_group='Liver', comparitor_group=c('Liver','Distant'), ncpus=ncpus)
-res <- rbindlist(l)
-res[,query:='Liver']
-res[,comparitor:='Distant']
-write_tsv(res,here('processed_data/min_distance_ratios_liv_to_dm_vs_pt.txt'))
 
 
 ## compare distributions of min-dist-ratios for any difference between PM and LNs
