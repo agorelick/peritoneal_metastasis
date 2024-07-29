@@ -240,13 +240,13 @@ write_distance_matrix(info$dm,here(paste0('processed_data/copynumber/',patient,'
 
 ## generate SCNA heatmap
 p <- scna_segment_heatmap(info$dm, info$segs, chr, sex, groups, group_cols)
-ggsave(here(paste0('figures/copynumber/heatmaps/',patient,'_cnv_segment_heatmap.pdf')),width=11,height=7)
+ggsave(here(paste0('figures_and_tables/copynumber/heatmaps/',patient,'_cnv_segment_heatmap.pdf')),width=11,height=7)
 
 ## test distance matrix similarity
 set.seed(42)
 message('Testing distance matrix similarity ...')
 p2 <- compare_matrices(info$dm, ad, patient, R=1e4)
-ggsave(here(paste0('figures/copynumber/distance_matrix_comparisons/',patient,'_cnv_bins_euclidean_matrix_comparison.pdf')),width=11,height=3,plot=p2)
+ggsave(here(paste0('figures_and_tables/copynumber/distance_matrix_comparisons/',patient,'_cnv_bins_euclidean_matrix_comparison.pdf')),width=11,height=3,plot=p2)
 
 ## get bootstrapped SCNA tree
 set.seed(42)
@@ -273,7 +273,7 @@ scna_tree <- addConfidences(scna_tree, bs_info$bstrees)
 scna_tree$node.label <- round(100*scna_tree$node.label)
 p_bstree_scna <- plot_bootstrapped_tree_unrooted(scna_tree, groups, paste0(patient,' SCNA'), size=4, bs_size=4)
 p <- plot_grid(p_bstree_scna, p_bstree_ad_conf, res$plot, nrow=1)
-ggsave(here(paste0('figures/copynumber/tree_comparisons/',patient,'_cnv_bins_euclidean_nj_tree_comparison.pdf')),plot=p,width=11,height=3)
+ggsave(here(paste0('figures_and_tables/copynumber/tree_comparisons/',patient,'_cnv_bins_euclidean_nj_tree_comparison.pdf')),plot=p,width=11,height=3)
 
 ## plot bootstrapped AD tree
 tree_ad_conf <- addConfidences(tree_ad_conf, bstrees)
@@ -284,7 +284,7 @@ scna_tree <- addConfidences(scna_tree, bs_info$bstrees)
 scna_tree$node.label <- round(100*scna_tree$node.label)
 p_bstree_scna <- plot_bootstrapped_tree(scna_tree, groups, paste0(patient,' SCNA'))
 p <- plot_grid(p_bstree_scna, p_bstree_ad_conf, ncol=2)
-ggsave(here(paste0('figures/copynumber/bootstrapped_trees/',patient,'_scna_polyg_trees_bootstrapped.pdf')),plot=p, width=11,height=8)
+ggsave(here(paste0('figures_and_tables/copynumber/bootstrapped_trees/',patient,'_scna_polyg_trees_bootstrapped.pdf')),plot=p, width=11,height=8)
 
 
 

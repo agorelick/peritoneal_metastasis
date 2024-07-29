@@ -147,13 +147,13 @@ write_distance_matrix(info$dm,here(paste0('processed_data/copynumber/',patient,'
 
 ## generate SCNA heatmap
 p <- scna_segment_heatmap(info$dm, info$segs, chr, sex, groups, group_cols)
-ggsave(here(paste0('figures/copynumber/heatmaps/',patient,'_cnv_segment_heatmap.pdf')),width=11,height=4.25)
+ggsave(here(paste0('figures_and_tables/copynumber/heatmaps/',patient,'_cnv_segment_heatmap.pdf')),width=11,height=4.25)
 
 ## test distance matrix similarity
 set.seed(42)
 message('Testing distance matrix similarity ...')
 p2 <- compare_matrices(info$dm, ad, patient, R=1e4)
-ggsave(here(paste0('figures/copynumber/distance_matrix_comparisons/',patient,'_cnv_bins_euclidean_matrix_comparison.pdf')),width=11,height=3)
+ggsave(here(paste0('figures_and_tables/copynumber/distance_matrix_comparisons/',patient,'_cnv_bins_euclidean_matrix_comparison.pdf')),width=11,height=3)
 
 ## get bootstrapped SCNA tree
 set.seed(42)
@@ -181,7 +181,7 @@ tree_scna$node.label <- round(100*tree_scna$node.label)
 tree_scna <- scale_branch('Normal1', tree_scna, sf=5)
 p_bstree_scna <- plot_bootstrapped_tree_unrooted(tree_scna, groups, paste0(patient,' SCNA'))
 p <- plot_grid(p_bstree_scna, p_bstree_ad_conf, res$plot, nrow=1)
-ggsave(here(paste0('figures/copynumber/tree_comparisons/',patient,'_cnv_bins_euclidean_nj_tree_comparison.pdf')),plot=p,width=20,height=8)
+ggsave(here(paste0('figures_and_tables/copynumber/tree_comparisons/',patient,'_cnv_bins_euclidean_nj_tree_comparison.pdf')),plot=p,width=20,height=8)
 
 ## plot bootstrapped AD tree
 tree_ad_conf <- addConfidences(tree_ad_conf, bstrees)
@@ -192,7 +192,7 @@ tree_scna <- addConfidences(tree_scna, bs_info$bstrees)
 tree_scna$node.label <- round(100*tree_scna$node.label)
 p_bstree_scna <- plot_bootstrapped_tree(tree_scna, groups, paste0(patient,' SCNA'))
 p <- plot_grid(p_bstree_scna, p_bstree_ad_conf, ncol=2)
-ggsave(here(paste0('figures/copynumber/bootstrapped_trees/',patient,'_scna_polyg_trees_bootstrapped.pdf')),plot=p, width=11,height=8)
+ggsave(here(paste0('figures_and_tables/copynumber/bootstrapped_trees/',patient,'_scna_polyg_trees_bootstrapped.pdf')),plot=p, width=11,height=8)
 
 ## plot a rotated version of the AD tree for the main figure
 tree_ad_rotated <- ape::rotate(tree_ad, node=47)
@@ -202,7 +202,7 @@ p <- p + geom_tiplab(fontface=1,size=4,hjust=0,angle=0,aes(color=group))
 p <- p + scale_color_manual(values=group_cols,name='Tissue')
 p <- p + theme(legend.position='bottom') + guides(color='none')
 p <- p + labs(title='C161 AD')
-ggsave(here(paste0('figures/copynumber/tree_comparisons/',patient,'_angular_distance_unrooted_rotated.pdf')),plot=p)
+ggsave(here(paste0('figures_and_tables/copynumber/tree_comparisons/',patient,'_angular_distance_unrooted_rotated.pdf')),plot=p)
 
 
 
