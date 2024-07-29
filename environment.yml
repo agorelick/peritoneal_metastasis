@@ -1,6 +1,5 @@
 name: peritoneal_metastasis
 channels:
-  - https://conda.anaconda.org/gurobi
   - conda-forge
   - bioconda
   - defaults
