@@ -1,0 +1,13 @@
+Sample_ID	Real_Sample_ID
+MmC2P1	PT1
+MmC2P2	PT2
+MmC2P3	PT3
+MmC2A1a	Lun1a
+MmC2A1b	Lun1b
+MmC2A1c	Lun1c
+MmC2B1a	Per1a
+MmC2B1b	Per1b
+MmC2B1c	Per1c
+MmC2H1a	Liv1a
+MmC2H1b	Liv1b
+MmC2H1c	Liv1c

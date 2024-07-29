@@ -1,0 +1,17 @@
+sample	tissue_type
+C11P1	darkorange
+C11Ad1	darkgreen
+C11N1	darkgreen
+C11P2	darkorange
+C11P3	darkorange
+C11P4	darkorange
+C11P5	darkorange
+C11P6	darkorange
+C11Ad2	darkgreen
+C11Ad3	darkgreen
+C11L1	brown
+C11L2	brown
+C11L3	brown
+C11L4	brown
+C11L5	brown
+C11N2	darkgreen

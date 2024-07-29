@@ -1,0 +1,15 @@
+sample	tissue_type
+C6L1	brown
+C6L2	brown
+C6L3	brown
+C6L4	brown
+C6L5	brown
+C6L6	brown
+C6L7	brown
+C6N1	darkgreen
+C6N2	darkgreen
+C6P1a	darkorange
+C6P1b	darkorange
+C6P1c	darkorange
+C6P1d	darkorange
+C6P2	darkorange

@@ -1,0 +1,11 @@
+Sample_ID	Real_Sample_ID
+C53-A	PT1
+C53-B	Liv1a
+C53-C	Normal1
+C53-E	LN1
+C53-F	PT2
+C53-G	PT3
+C53-H	PT4
+C53-I	Liv1b
+C53-I_Nod	Liv2
+C53-J	Liv3

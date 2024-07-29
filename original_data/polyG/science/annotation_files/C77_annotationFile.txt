@@ -1,0 +1,9 @@
+Sample_ID	Real_Sample_ID
+C77-A	Liv1a
+C77-B	Liv1b
+C77-C	Normal1
+C77-D	Normal2
+C77-G	LN1
+C77-H	LN2
+C77-J	PT1
+C77-K	PT2

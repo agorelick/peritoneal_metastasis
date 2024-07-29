@@ -1,0 +1,14 @@
+sample	tissue_type
+C59-A	darkorange
+C59-C	red
+C59-D	darkgreen
+C59-E	darkblue
+C59-F-L1	darkblue
+C59-F-L2	darkblue
+C59-G	red
+C59-H	red
+C59-I	darkorange
+C59-J	darkorange
+C59-M	darkorange
+C59-N	darkorange
+C59-D2	darkgreen

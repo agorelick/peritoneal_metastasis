@@ -1,0 +1,10 @@
+Sample_ID	Real_Sample_ID
+C65-A	Normal1
+C65-B	PT1
+C65-G	PT2
+C65-C-LA	LN1a
+C65-C-LB	LN1b
+C65-H	LN2
+C65-D	LN3
+C65-E	Liv1a
+C65-F	Liv1b

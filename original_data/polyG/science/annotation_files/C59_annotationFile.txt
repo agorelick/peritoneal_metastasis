@@ -1,0 +1,14 @@
+Sample_ID	Real_Sample_ID
+C59-A	PT3
+C59-C	Liv1b
+C59-D	Normal1
+C59-E	LN1
+C59-F-L1	LN2
+C59-F-L2	LN3
+C59-G	Liv1a
+C59-H	Liv1c
+C59-I	PT1
+C59-J	PT2
+C59-M	PT4
+C59-N	PT5
+C59-D2	Normal2

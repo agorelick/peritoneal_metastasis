@@ -15,14 +15,14 @@ suppressMessages(trash <- lapply(packages, require, character.only = TRUE))
 f=function(directory) {
     if(!dir.exists(directory)) {
         message('Creating directory ',directory)
-        dir.create(here('processed_data/copynumber'), recursive=T)
+        dir.create(directory, recursive=T)
     }
 }
 dirs <- c(here('processed_data/copynumber'),
-          here('figures/copynumber/tree_comparisons'),
-          here('figures/copynumber/distance_matrix_comparisons'),
-          here('figures/copynumber/bootstrapped_trees'),
-          here('figures/copynumber/heatmaps'))
+          here('figures_and_tables/copynumber/tree_comparisons'),
+          here('figures_and_tables/copynumber/distance_matrix_comparisons'),
+          here('figures_and_tables/copynumber/bootstrapped_trees'),
+          here('figures_and_tables/copynumber/heatmaps'))
 trash <- lapply(dirs, f)
 
 
@@ -1318,12 +1318,16 @@ subset_for_intralesion <- function(res) {
 }
 
 
-make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F, show.timing=F, show.bsvals=F, tree.layout='ape', overwrite=F) { 
+make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F, show.timing=F, show.bsvals=F, min.bsval.shown=50, tree.layout='ape', overwrite=F) { 
     set.seed(42)
-    ad_file <- here(paste0('processed_data/angular_distance_matrices/',this.patient,'.txt'))
+    if(this.patient!='C38') {
+        ad_file <- here(paste0('processed_data/angular_distance_matrices/',this.patient,'.txt'))
+    } else {
+        ad_file <- here(paste0('processed_data/polyG/science/results/sample_exclusion_0.3_rep_cut_0.11/results_angular_distance_representativeReplicates/angular_dist_matrix_w_root_usedmarkers/C38_angular_dist_matrix_w_root_usedmarkers_repreReplicate_newnames.txt'))
+    }
     ad <- read_distance_matrix(ad_file)
     outfile <- file.path(outdir,paste0(this.patient,'.pdf'))
-    if(file.exists(outdir) & overwrite==F) {
+    if(file.exists(outfile) & overwrite==F) {
         message(this.patient,': file already exists.')
         return(NULL)
     }
@@ -1337,9 +1341,12 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
         si <- si[!duplicated(Sample_ID),]   
     }
     if(collapsed) si <- si[in_collapsed==T,]
-    valid_samples <- intersect(rownames(ad), si$Real_Sample_ID)
-    ad <- ad[valid_samples, valid_samples]
-
+    if(this.patient!='C38') {
+        valid_samples <- intersect(rownames(ad), si$Real_Sample_ID)
+        ad <- ad[valid_samples, valid_samples]
+    } else {
+        valid_samples <- rownames(ad)
+    }
     ## get the NJ tree
     get_tree <- function(mat) { 
         tree <- nj(mat)
@@ -1376,7 +1383,7 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
         bsvals <- T
     }
 
-    if(tree.layout=='ape' & show.bsvals==T) tree$node.label[tree$node.label < 50] <- NA
+    if(tree.layout=='ape' & show.bsvals==T) tree$node.label[tree$node.label < min.bsval.shown] <- NA
     groups <- si[,c('Real_Sample_ID','group','vertical','met_timing'),with=F]
     groups[met_timing=='metachronous after synchronous', met_timing:='metachronous']
     setnames(groups,'Real_Sample_ID','label')
@@ -1415,7 +1422,7 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
         p <- p + geom_tippoint(data=pd, aes(pch=met_timing), size=2.5) + scale_shape_manual(values=timing_shapes,name='Metastasis timing')
     }
 
-    tree_title <- paste0(this.patient,'. BS values 50%+ shown')
+    tree_title <- paste0(this.patient,'. BS values ',min.bsval.shown,'%+ shown')
     if(truncated_normal) tree_title <- paste0(tree_title,'. Normal branch truncated.')
     p <- p + theme(legend.position='bottom') + ggtitle(tree_title)
 
@@ -1426,7 +1433,7 @@ make_tree <- function(this.patient, sample_info, collapsed, outdir, show.depth=F
 }
 
 
-run_chemo_simulation <- function(sim, cells_start, cells_end, chemo_death, b, d) { 
+run_chemo_simulation <- function(sim, cells_start, cells_end, frac_surviving_chemo, b, d) { 
     message('Simulation: ',sim)
     
     # Define relevant parameters
@@ -1470,7 +1477,7 @@ run_chemo_simulation <- function(sim, cells_start, cells_end, chemo_death, b, d)
     for(i in 1:nrow(PMs)) {
         cell_bucket_prechemo <- rep(clones, PMs[i,])
         total_cells <- sum(PMs[i,])
-        cells_surviving <- round(total_cells*chemo_death)
+        cells_surviving <- round(total_cells*frac_surviving_chemo)
         cell_bucket_postchemo <- sample(cell_bucket_prechemo, size=cells_surviving, replace=F)
         cell_bucket_postchemo <- factor(cell_bucket_postchemo, levels=clones)
         tbl <- table(cell_bucket_postchemo) 
@@ -1481,7 +1488,7 @@ run_chemo_simulation <- function(sim, cells_start, cells_end, chemo_death, b, d)
     for(i in 1:nrow(Ls)) {
         cell_bucket_prechemo <- rep(clones, Ls[i,])
         total_cells <- sum(Ls[i,])
-        cells_surviving <- round(total_cells*chemo_death)
+        cells_surviving <- round(total_cells*frac_surviving_chemo)
         cell_bucket_postchemo <- sample(cell_bucket_prechemo, size=cells_surviving, replace=F)
         cell_bucket_postchemo <- factor(cell_bucket_postchemo, levels=clones)
         tbl <- table(cell_bucket_postchemo) 

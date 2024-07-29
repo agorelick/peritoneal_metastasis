@@ -1,4 +1,98 @@
 source(here::here('R/func.R'))
+run_AD_simulation <- F # generate SI Figure XX
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# AD cartoon in Fig 1b
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+library(Rcpp)
+library(RcppArmadillo)
+library(scatterplot3d)
+sourceCpp(here('R/ad_simulation.cpp'))
+
+seed = 1722184948
+set.seed(seed); seed
+gt <- round(runif(min=10, max=14, 3))
+gt1 <- drift(gt, mu=5e-4, gens=2500)
+Liv1 <- drift(gt1, mu=5e-4, gens=1000)
+gt2 <- drift(gt1, mu=5e-4, gens=700)
+PT2 <- drift(gt2, mu=5e-4, gens=1000)
+gt3 <- drift(gt2, mu=5e-4, gens=500)
+Per1 <- drift(gt3, mu=5e-4, gens=600)
+PT1 <- drift(gt3, mu=5e-4, gens=900)
+m <- as.matrix(rbind(gt, PT1, PT2,  Per1, Liv1))
+rownames(m)[1] <- 'N1'
+Z  <- angular_distance(m, return_Z=1) 
+rownames(Z) <- rownames(m)
+
+## ring with x=0
+r <- 1
+phi <- pi/2
+theta <- seq(0,2*pi,by=0.001)
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_x0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## ring with y=0
+r <- 1
+phi <- 0
+theta <- seq(0,2*pi,by=0.001)
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_y0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## ring with z=0
+r <- 1
+phi <- seq(0,2*pi,by=0.001)
+theta <- pi/2
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## Per1 ring
+r <- 1
+phi <- seq(0,2*pi,by=0.001)
+theta <- pi/2
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+tmp <- as.data.table(rbind(Z, dat_x0, dat_y0, dat_z0))
+tmp$pch <- 1
+tmp$pch[1:5] <- 16
+tmp$size <- 0.25
+tmp$size[1:5] <- 2.5
+tmp$color <- '#bfbfbf'
+tmp$color[1:5] <- 'blue'
+
+pdf(here('figures_and_tables/fig1b_center.pdf'))
+s <- 1
+zz <- scatterplot3d(x=tmp[[1]],y=tmp[[2]], z=tmp[[3]],xlab="marker1",ylab="marker2",zlab="marker3", grid = TRUE,
+                    xlim=c(-s,s), ylim=c(-s,s), zlim=c(-s,s), main='Fig1b, center',cex.symbols=tmp$size, pch=tmp$pch, color=tmp$color)
+zz.coords <- zz$xyz.convert(Z[,1], Z[,2], Z[,3]) 
+text(zz.coords$x[1:5], 
+     zz.coords$y[1:5],             
+     labels = rownames(Z)[1:5],
+     cex = 1,
+     pos = 4)
+message(seed)
+dev.off()
+
+ad <- angular_distance(m) 
+rownames(ad) <- rownames(m); colnames(ad) <- rownames(m)
+tree <- nj(ad)
+tree <- phytools::reroot(tree, which(tree$tip.label=='N1'))
+tree <- ape::rotate(tree, 9)
+p <- ggtree(tree, layout='ape')
+p <- p + geom_tiplab(angle=0) + ggtitle('Fig 1b, right')
+ggsave(here('figures_and_tables/fig1b_right.pdf'))
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # make annotated poly-G trees for each patient
@@ -6,7 +100,89 @@ source(here::here('R/func.R'))
 
 valid_patients <- unique(sample_info[cohort %in% c('science','natgen','peritoneal') & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
 valid_patients <- sort(c(valid_patients,'E3'))
-trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures/polyg_phylogenies'), show.bsvals=T)
+trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures_and_tables/polyg_trees'), show.bsvals=T, min.bsval.shown=0)
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# number of poly-G genotypes (PCRs) overall
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+prospective_patients <- unique(sample_info[cohort=='peritoneal' & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
+prospective_patients <- c(prospective_patients,'E3')
+
+# and number of genotypes overall
+get_patient_genotypes <- function(patient) {
+    message(patient)
+    ## get the list of marker files for this patient
+    directory <- here(paste0('original_data/polyG/peritoneal/data/',patient,'-Data'))
+    marker_files <- dir(directory, full.name=T)
+    n_markers <- length(marker_files)
+    ## get the number of genotypes (the number of samples X replicates for each marker) 
+    count_genotypes=function(file) {
+        dd <- fread(file)
+        genotypes <- ncol(dd) 
+        genotypes
+    }
+    genotypes <- sum(sapply(marker_files, count_genotypes, USE.NAMES=F))
+    list(patient=patient, genotypes=genotypes, n_markers=n_markers)
+}
+l <- lapply(prospective_patients, get_patient_genotypes)
+l <- rbindlist(l)
+message('N poly-G genotypes overall: ',sum(l$genotypes))
+message('N markers/patient: ',min(l$n_markers),'-',max(l$n_markers),'; mu=',round(mean(l$n_markers),1))
+
+
+
+
+# number of markers per patient
+get_patient_markers <- function(patient) {
+    message(patient)
+    ## get the list of marker files for this patient
+    directory <- here(paste0('original_data/polyG/peritoneal/data/',patient,'-Data'))
+    marker_files <- dir(directory, full.name=T)
+
+    ## get the number of genotypes (the number of samples X replicates for each marker) 
+    count_genotypes=function(file) {
+        dd <- fread(file)
+        genotypes <- ncol(dd) 
+        genotypes
+    }
+    genotypes <- sum(sapply(marker_files, count_genotypes, USE.NAMES=F))
+    list(patient=patient, genotypes=genotypes)
+}
+l <- lapply(prospective_patients, get_patient_genotypes)
+l <- rbindlist(l)
+message('N poly-G genotypes overall: ',sum(l$genotypes))
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# check numbers of processed samples for Fig 1a
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# get number of samples/tissue type
+x <- sample_info[cohort=='peritoneal' & grepl('Mm',Patient_ID)==F & grepl('CRC',Patient_ID)==F]
+x[grepl('E[a-c]3',Patient_ID), Patient_ID:='E3']
+x <- x[!duplicated(Sample_ID),]
+message('N patients: ',length(unique(x$Patient_ID)))
+message('N samples overall: ',nrow(x))
+message('N samples per patient:')
+tbl <- table_freq(x$Patient_ID)
+tbl
+
+message('Average N samples per patient: ',round(mean(tbl$N),1))
+message('N samples per tissue group:')
+x[,group4:=group]
+x[group4 %in% c('Liver','Lung','Distant (other)'), group4:='Distant']
+tbl <- table_freq(x$group4)
+tbl$avg <- round(tbl$N / length(unique(x$Patient_ID)),1)
+tbl
+
+x[grepl('TD',Real_Sample_ID),group:='Tumor deposit']
+x[grepl('LN',Real_Sample_ID),group:='Lymph node']
+x[grepl('Ov',Real_Sample_ID)==T & group!='Peritoneum',group:='Ovary']
+message('N samples per tissue group (detailed):')
+table_freq(x$group)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -227,7 +403,122 @@ p_cohort <- ggplot(patient_info, aes(x=PATIENT_ID, y=1)) +
     labs(y='Cohort',x=NULL) 
 
 p <- plot_grid(p_heatmap_lesions, p_heatmap_samples, p_stage, p_location, p_timing, ncol=1, align='v', axis='lr', rel_heights=c(2,2,1,0.5,2))
-ggsave(here('figures/fig_1a.pdf'),width=9, height=9)
+ggsave(here('figures_and_tables/fig_1a.pdf'),width=9, height=9)
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Table 1 (Patient clinical data table)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+patient_info <- fread(here('original_data/misc/patient_info.txt'))
+patient_info[PATIENT_ID=='Ea3',Nstage:='+']
+patient_info[,c('Tstage','Nstage','Mstage'):=NULL]
+
+f=function(id) {
+    s <- strsplit(id,'')[[1]]
+    s <- as.integer(s)
+    s <- s[!is.na(s)]
+    out <- as.integer(paste(s,collapse=''))
+    list(id=id, num=out)
+}
+l <- lapply(unique(patient_info$PATIENT_ID), f)
+info <- rbindlist(l)
+info[grep('C',id),group:='C']
+info[grep('E',id),group:='E']
+info <- info[order(group,num),]
+patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
+
+## add number of samples(lesions) of each tissue type per patient
+sample_info <- fread(here('processed_data/sample_info.txt'))
+sample_info <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
+tabulate <- function(info) {
+    lesions <- sum(info$in_collapsed==T)
+    samples <- nrow(info)
+    list(lesions=lesions, samples=samples)
+}
+tbl <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','tissue_type')]
+tbl$tissue_type <- factor(tbl$tissue_type, levels=(c('Normal','Primary','Lymph node','Tumor deposit','Peritoneum','Lung','Liver','Ovary (hematogenous)','Lymph node (distant)')))
+tbl$label <- as.character(NA)
+tbl[samples==lesions, label:=samples]
+tbl[samples > lesions,label:=paste0(samples,' (',lesions,')')]
+tbl <- data.table::dcast(Patient_ID ~ tissue_type, value.var='label', data=tbl)
+tbl[is.na(tbl)] <- 0
+patient_info <- merge(patient_info, tbl, by.x='PATIENT_ID', by.y='Patient_ID', all.x=T)
+
+## add numbers of synchronous/metachronous samples(lesions) per group per patient
+sample_info[met_timing %in% c('metachronous','metachronous after synchronous'), met_timing:='metachronous']
+sample_info[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
+tbl_timing <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','met_timing')]
+tbl_timing$label <- as.character(NA)
+tbl_timing[samples==lesions, label:=samples]
+tbl_timing[samples > lesions,label:=paste0(samples,' (',lesions,')')]
+tbl_sync <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='synchronous'])
+names(tbl_sync) <- paste0('Sync. ',names(tbl_sync))
+names(tbl_sync)[1] <- 'PATIENT_ID'
+tbl_meta <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='metachronous'])
+names(tbl_meta) <- paste0('Meta. ',names(tbl_meta))
+names(tbl_meta)[1] <- 'PATIENT_ID'
+tbl_timing <- merge(patient_info[,c('PATIENT_ID'),with=F], tbl_sync, by='PATIENT_ID', all.x=T)
+tbl_timing <- merge(tbl_timing, tbl_meta, by='PATIENT_ID', all.x=T)
+tbl_timing[is.na(tbl_timing)] <- 0
+patient_info <- merge(patient_info, tbl_timing, by='PATIENT_ID', all.x=T)
+
+## add numbers of deep/luminal PT region samples per patient
+tbl_depth <- sample_info[group=='Primary',tabulate(.SD),by=c('Patient_ID','vertical')]
+tbl_depth <- data.table::dcast(Patient_ID ~ vertical, value.var='samples', data=tbl_depth)
+tbl_depth[is.na(tbl_depth)] <- 0
+names(tbl_depth) <- c('PATIENT_ID','Deep PT','Luminal/mucosal PT')
+patient_info <- merge(patient_info, tbl_depth, by='PATIENT_ID', all.x=T)
+
+## order the patients numerically
+patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
+patient_info <- patient_info[order(PATIENT_ID),]
+write_tsv(patient_info,here('figures_and_tables/supp_table1.txt'))
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Table 4 Timing, treatment
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+sample_info <- fread(here('processed_data/sample_info.txt'))
+sample_info <- sample_info[Patient_ID %in% patient_info$PATIENT_ID]
+sample_info[met_timing %in% 'metachronous after synchronous', met_timing:='metachronous']
+si <- sample_info[,c('Patient_ID','group','Real_Sample_ID','met_timing','met_treated_type','in_collapsed'),with=F]
+si[met_treated_type=='',met_treated_type:='untreated']
+si[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
+tbl <- si[,tabulate(.SD),by=c('Patient_ID','group','met_treated_type','met_timing')]
+tbl <- tbl[group %in% c('Locoregional','Peritoneum','Distant (any)'),]
+count_patients <- function(tbl) {
+    pts_with_geq3_lesions <- length(unique(tbl$Patient_ID[tbl$lesions >= 3]))
+    total_lesions <- sum(tbl$lesions)
+    list(pts_with_geq3_lesions=pts_with_geq3_lesions, total_lesions=total_lesions)
+}
+
+## number of patients with 3+ lesions of the given criteria
+tbl_groups_pts <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
+tbl_groups_pts <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='pts_with_geq3_lesions', data=tbl_groups_pts)
+tbl_groups_pts <- tbl_groups_pts[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
+tbl_groups_pts[is.na(tbl_groups_pts)] <- 0
+tbl_groups_lesions <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
+tbl_groups_lesions <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='total_lesions', data=tbl_groups_lesions)
+tbl_groups_lesions <- tbl_groups_lesions[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
+tbl_groups_lesions[is.na(tbl_groups_lesions)] <- 0
+names(tbl_groups_pts)[3:5] <- paste0(names(tbl_groups_pts)[3:5],'_geq3')
+names(tbl_groups_lesions)[3:5] <- paste0(names(tbl_groups_lesions)[3:5],'_lesions')
+
+tbl_overall <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing')]
+names(tbl_overall)[3:4] <- c('pts_geq3','lesions_total')
+out <- merge(tbl_overall, tbl_groups_pts, by=c('met_timing','met_treated_type'), all.x=T)
+out <- merge(out, tbl_groups_lesions, by=c('met_timing','met_treated_type'), all.x=T)
+out[met_treated_type=='systemic chemo',met_treated_type:='Systemic chemo']
+out[met_treated_type=='hipec',met_treated_type:='HIPEC only']
+out[met_treated_type=='untreated',met_treated_type:='Untreated']
+out$met_timing <- factor(out$met_timing, levels=c('synchronous','metachronous'))
+out$met_treated_type <- factor(out$met_treated_type, levels=c('Untreated','Systemic chemo','HIPEC only'))
+out <- out[order(met_timing, met_treated_type),]
+out <- out[,c('met_timing','met_treated_type','Locoregional_geq3','Peritoneum_geq3','Distant (any)_geq3','pts_geq3','Locoregional_lesions','Peritoneum_lesions','Distant (any)_lesions','lesions_total'),with=F]
+write_tsv(out,here('figures_and_tables/supp_table4.txt'))
+
 
 
 
@@ -268,7 +559,7 @@ p2 <- p2 + scale_color_manual(values=group_cols,name='Tissue')
 p2 <- p2 + theme(legend.position='bottom') + guides(color='none')
 p2 <- p2 + labs(title='Fig 1d. C161 poly-G')
 p <- plot_grid(p1, p2, nrow=1)
-ggsave(here('figures/fig_1cd.pdf'),width=9, height=6)
+ggsave(here('figures_and_tables/fig_1cd.pdf'),width=9, height=6)
 
 
 
@@ -310,7 +601,7 @@ p <- ggplot(d, aes(x=patient, y=value)) +
     theme(legend.position='bottom') +
     scale_fill_brewer(palette='Accent',name='Comparison') +
     labs(x='Patient', y='Quartet similarity',title='Fig 1e. SCNA/poly-G tree similarity')
-ggsave(here('figures/fig_1e.pdf'))
+ggsave(here('figures_and_tables/fig_1e.pdf'))
 
 
 
@@ -372,7 +663,7 @@ p <- ggplot(res, aes(x=group, y=RDS)) +
     scale_fill_manual(values=tmp_cols,name='Tissue type') + 
     theme_ang(base_size=12) +
     labs(x=NULL,y='RDS',title='Fig 2e')
-ggsave(here('figures/fig_2e.pdf'))
+ggsave(here('figures_and_tables/fig_2e.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -412,7 +703,7 @@ p <- ggplot(res, aes(x=class, y=distance)) +
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x=NULL,y='Angular distance',title='Fig 2f')
-ggsave(here('figures/fig_2f.pdf'))
+ggsave(here('figures_and_tables/fig_2f.pdf'))
 
 
 
@@ -464,7 +755,7 @@ p <- ggplot(res[group1 %in% c('Peritoneum','Liver')], aes(x=group1, y=distance))
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x=NULL,y='Angular distance',title='Fig 2g')
-ggsave(here('figures/fig_2g.pdf'))
+ggsave(here('figures_and_tables/fig_2g.pdf'))
 
 
 
@@ -539,7 +830,7 @@ p <- ggplot(res, aes(x=group, y=RDS)) +
     scale_fill_manual(values=tmp_cols,name='Tissue type') + 
     theme_ang(base_size=12) +
     labs(x=NULL,y='RDS (untreated+synchronous)',title='Fig 3a')
-ggsave(here('figures/fig_3a.pdf'))
+ggsave(here('figures_and_tables/fig_3a.pdf'))
 
 
 
@@ -573,7 +864,7 @@ p <- ggplot(res_per, aes(x=class, y=RDS)) +
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x=NULL,y='RDS',title='Fig 3b')
-ggsave(here('figures/fig_3b.pdf'))
+ggsave(here('figures_and_tables/fig_3b.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -604,7 +895,7 @@ p <- ggplot(res_per, aes(x=class, y=distance)) +
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x=NULL,y='Between-lesion AD',title='Fig 3c')
-ggsave(here('figures/fig_3c.pdf'))
+ggsave(here('figures_and_tables/fig_3c.pdf'))
 
 
 
@@ -658,7 +949,7 @@ p <- ggplot(res, aes(x=class, y=RDS)) +
     scale_fill_manual(values=group_cols,name='Tissue type') + 
     theme_ang(base_size=12) +
     labs(x=NULL,y='RDS',title='Fig 3d. Met-specific RDS vs treatment')
-ggsave(here('figures/fig_3d.pdf'))
+ggsave(here('figures_and_tables/fig_3d.pdf'))
 
 
 
@@ -694,7 +985,7 @@ p <- ggplot(res, aes(x=class, y=distance)) +
     guides(fill='none') +
     theme_ang(base_size=10) +
     labs(x=NULL,y='Between-lesion AD',title='Fig 3e')
-ggsave(here('figures/fig_3e.pdf'))
+ggsave(here('figures_and_tables/fig_3e.pdf'))
 
 
 
@@ -729,7 +1020,7 @@ p <- ggplot(res, aes(x=group1, y=distance)) +
     guides(fill='none') +
     theme_ang(base_size=10) +
     labs(x=NULL,y='Within-lesion AD\n(synchronous, untreated)',title='Fig 3h')
-ggsave(here('figures/fig_3h.pdf'))
+ggsave(here('figures_and_tables/fig_3h.pdf'))
 
 
 
@@ -771,7 +1062,7 @@ p <- ggplot(res, aes(x=group1, y=distance)) +
     guides(fill='none') +
     theme_ang(base_size=10) +
     labs(x=NULL,y='Within-lesion AD\n(untreated, any timing)',title='Fig 3i')
-ggsave(here('figures/fig_3i.pdf'))
+ggsave(here('figures_and_tables/fig_3i.pdf'))
 
 
 
@@ -809,7 +1100,7 @@ p <- ggplot(dat2, aes(x=tstage, y=prop)) +
     scale_fill_manual(values=cols, name='Synchronous\nmetastases') + 
     theme_ang(base_size=12) +
     theme(legend.position='right')
-ggsave(here('figures/fig_4b.pdf'))
+ggsave(here('figures_and_tables/fig_4b.pdf'))
 
 
 
@@ -935,7 +1226,7 @@ p <- ggplot(results[group=='Peritoneum'], aes(x=lfc, y=nlog10q)) +
     scale_fill_manual(values=cols, name='Significance') + 
     theme_bw(base_size=12) +
     labs(x='Effect size', y='-log10(q-value)', title='Fig 4e')
-ggsave(here('figures/fig_4e.pdf'),width=5, height=3.5)
+ggsave(here('figures_and_tables/fig_4e.pdf'),width=5, height=3.5)
 
 p <- ggplot(results[group!='Peritoneum'], aes(x=lfc, y=nlog10q)) +
     scale_y_continuous(limits=c(0,3.0)) +
@@ -950,7 +1241,7 @@ p <- ggplot(results[group!='Peritoneum'], aes(x=lfc, y=nlog10q)) +
     theme_bw(base_size=12) +
     labs(x='Effect size', y='-log10(q-value)', title='ED Fig 6') +
     theme(legend.position='none')
-ggsave(here('figures/ed_fig_6.pdf'), width=9, height=3.5)
+ggsave(here('figures_and_tables/ed_fig_6.pdf'), width=9, height=3.5)
 
 
 
@@ -1065,7 +1356,7 @@ p1 <- ggplot(pd1, aes(x=vertical, y=distance)) +
     facet_wrap(facets=~patient_type, nrow=1, ncol=3) +
     stat_pvalue_manual(stat.test1, label = "label", tip.length = 0.02, y.position=1.75) +
     labs(x='Invasion depth of primary tumor', y='Angular distance',title='Fig 4f')
-ggsave(here('figures/fig_4f.pdf'), width=6, height=4.5)
+ggsave(here('figures_and_tables/fig_4f.pdf'), width=6, height=4.5)
 
 
 p2 <- ggplot(pd2, aes(x=vertical, y=distance)) +
@@ -1081,7 +1372,7 @@ p2 <- ggplot(pd2, aes(x=vertical, y=distance)) +
     facet_wrap(facets=~patient_type, nrow=1, ncol=3) +
     stat_pvalue_manual(stat.test2, label = "label", tip.length = 0.02, y.position=2.15) +
     labs(x='Invasion depth of primary tumor', y='Angular distance',title='Fig 4g')
-ggsave(here('figures/fig_4g.pdf'), width=6, height=4.5)
+ggsave(here('figures_and_tables/fig_4g.pdf'), width=6, height=4.5)
 
 
 
@@ -1276,7 +1567,7 @@ p1 <- ggplot(pd, aes(x=percentile, y=obs)) +
     theme(axis.text.x=element_blank(), axis.line.x=element_blank(), axis.ticks.x=element_blank()) + 
     guides(color='none') +
     labs(x=NULL, y='log2 min-distance-ratio',title='Fig 5d')
-ggsave(here('figures/fig_5d.pdf'), height=6.5, width=6)
+ggsave(here('figures_and_tables/fig_5d.pdf'), height=6.5, width=6)
 
 
 
@@ -1301,7 +1592,7 @@ p <- ggplot(res, aes(x=group, y=obs)) +
     guides(fill='none') +
     theme(axis.text.x=element_text(angle=45,hjust=1,vjust=1))  +
     labs(x='Met type', y='log2 min-distance-ratio',title='Fig 5f')
-ggsave(here('figures/fig_5f.pdf'))
+ggsave(here('figures_and_tables/fig_5f.pdf'))
 
 res$group_factor <- factor(res$group, levels=c('Liver','Peritoneum','Locoregional'))
 m1 <- lm(obs ~ group_factor + comparitor_pt_ratio, data=res); summary(m1)
@@ -1346,7 +1637,7 @@ p3 <- ggplot(res, aes(x=bucket, y=obs)) +
     theme_ang(base_size=12) +
     stat_pvalue_manual(stat.test, label = "label", tip.length = NA, y.position=c(2.1,2,2.2)) +
     labs(x='Time of liver met. diagnosis', y='Origin ratio', title='Fig 5e')
-ggsave(here('figures/fig_5e.pdf'))
+ggsave(here('figures_and_tables/fig_5e.pdf'))
 
 
 
@@ -1550,7 +1841,7 @@ p <- ggplot(res, aes(x=same_or_different, y=r)) +
     guides(fill='none') +
     theme_bw(base_size=12) +
     labs(x='Samples from same/different PT', y='Coalescence ratio', title='ED Fig 2. Multi-PT CRs')
-ggsave(here('figures/ed_fig_2.pdf'))
+ggsave(here('figures_and_tables/ed_fig_2.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1573,12 +1864,11 @@ p <- ggplot(m, aes(x=group, y=SDI))  +
     geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(size=region_size_mm2, fill=group), pch=21, color='black', stroke=0.25) + 
     geom_boxplot(fill=NA, outlier.shape=NA, width=0.5) + 
     theme_ang(base_size=12) + 
-    scale_size_area(breaks=c(1,5,10)) +   
-    scale_fill_manual(values=group_cols, name='Tissue type') +
+    scale_size_area(breaks=c(1,5,10)) +      scale_fill_manual(values=group_cols, name='Tissue type') +
     stat_compare_means(method = "kruskal.test", label.y = 1.1, size=3, geom = "label") +
     stat_pvalue_manual(tst, label='label', y.position=c(0.95,1.0,1.05), size=3, tip.length=0) +
     labs(x='Sample type', y='SDI', title='ED Fig 3')
-ggsave(here('figures/ed_fig_3.pdf'),width=6, height=4.5)
+ggsave(here('figures_and_tables/ed_fig_3.pdf'),width=6, height=4.5)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1593,42 +1883,40 @@ sourceCpp(here('R/chemo_simulation.cpp'))
 
 set.seed(42)
 RNGkind("L'Ecuyer-CMRG")
-l <- mclapply(1:100, run_chemo_simulation, cells_start=1e6, cells_end=1e8, chemo_death=0.20, b=0.25, d=0.24, mc.cores=4)
-d <- rbindlist(l)
-d <- d[setting!='Post-chemo, pre-regrowth']
-d[setting=='Post-chemo, post-regrowth', setting:='Post-regrowth']
-d$setting <- factor(d$setting, levels=c('Pre-chemo','Post-regrowth'))
-d[group=='PM', group:='Peritoneum']
-d[group=='L', group:='Liver']
-d$group <- factor(d$group, levels=c('Peritoneum','Liver'))
+l <- mclapply(1:100, run_chemo_simulation, cells_start=1e6, cells_end=1e8, frac_surviving_chemo=0.20, b=0.25, d=0.24, mc.cores=4)
+d1 <- rbindlist(l)
+d1 <- d1[setting!='Post-chemo, pre-regrowth']
+d1[setting=='Post-chemo, post-regrowth', setting:='Post-regrowth']
+d1$setting <- factor(d1$setting, levels=c('Pre-chemo','Post-regrowth'))
+d1[group=='PM', group:='Peritoneum']
+d1[group=='L', group:='Liver']
+d1$group <- factor(d1$group, levels=c('Peritoneum','Liver'))
+d1$chemo_death <- '80% chemo death'
+
+set.seed(42)
+RNGkind("L'Ecuyer-CMRG")
+l <- mclapply(1:100, run_chemo_simulation, cells_start=1e6, cells_end=1e8, frac_surviving_chemo=0.60, b=0.25, d=0.24, mc.cores=4)
+d2 <- rbindlist(l)
+d2 <- d2[setting!='Post-chemo, pre-regrowth']
+d2[setting=='Post-chemo, post-regrowth', setting:='Post-regrowth']
+d2$setting <- factor(d2$setting, levels=c('Pre-chemo','Post-regrowth'))
+d2[group=='PM', group:='Peritoneum']
+d2[group=='L', group:='Liver']
+d2$group <- factor(d2$group, levels=c('Peritoneum','Liver'))
+d2$chemo_death <- '40% chemo death'
+
+d <- rbind(d1, d2)
+d$chemo_death <- factor(d$chemo_death, levels=c('80% chemo death','40% chemo death'))
 
 p_inter <- ggplot(d[het_type=='Inter-lesion'], aes(x=group, y=value)) +
     geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(color=group), pch=16, size=3) +
     geom_boxplot(fill=NA, outlier.shape=NA, color='black') +
     scale_color_manual(values=group_cols,name='Organ') + 
-    facet_wrap(facets=~setting) +
-    labs(y='Median Euclidean distance between lesions', title='ED Fig 4b') +
+    facet_wrap(facets=~chemo_death+setting) +
+    labs(y='Median Euclidean distance between lesions', title='ED Fig 4b') + 
     theme_bw(base_size=10) + 
     theme(legend.position='none')
-
-p_intra <- ggplot(d[het_type=='Intra-lesion'], aes(x=group, y=value)) +
-    geom_point(position=position_jitter(width=0.15, height=0, seed=42), aes(color=group), pch=16, size=3) +
-    geom_boxplot(fill=NA, outlier.shape=NA, color='black') +
-    scale_color_manual(values=group_cols,name='Organ') + 
-    facet_wrap(facets=~setting) +
-    labs(y='Intra-lesion heterogeneity (SDI)', title='ED Fig 4c') + 
-    theme_bw(base_size=10) +
-    theme(legend.position='none')
-
-p <- plot_grid(p_inter, p_intra, nrow=2)
-ggsave(here('figures/ed_fig_4bc.pdf'),width=5, height=6)
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SI Fig XX. AD purity
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
+ggsave(here('figures_and_tables/ed_fig_4bc.pdf'),width=6, height=8)
 
 
 
@@ -1650,7 +1938,7 @@ p <- ggplot(d, aes(x=pt_size_cm, y=pt_regions_sampled)) +
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x='Primary tumor longest dimension [cm]',y='N regions sampled') 
-ggsave(here('figures/ed_fig_XX.pdf'))
+ggsave(here('figures_and_tables/ed_fig_XX.pdf'))
 
 
 
@@ -1681,7 +1969,7 @@ p1 <- ggplot(d, aes(x=primary, y=value)) +
     guides(fill='none') +
     theme_ang(base_size=12) +
     labs(x='Primary tumor',y='Intra-lesion angular distance') 
-ggsave(here('figures/ed_fig_XX.pdf'))
+ggsave(here('figures_and_tables/ed_fig_XX.pdf'))
 
 
 if(FALSE) { 
@@ -1708,7 +1996,7 @@ if(FALSE) {
         guides(fill='none') +
         theme_ang(base_size=12) +
         labs(x='Primary tumor',y='Intra-lesion angular distance') 
-    #ggsave(here('figures/ed_fig_XX.pdf'))
+    #ggsave(here('figures_and_tables/ed_fig_XX.pdf'))
 
 
     ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
@@ -1734,7 +2022,7 @@ if(FALSE) {
         guides(fill='none') +
         theme_ang(base_size=12) +
         labs(x='Primary tumor',y='Intra-lesion angular distance') 
-    #ggsave(here('figures/ed_fig_XX.pdf'))
+    #ggsave(here('figures_and_tables/ed_fig_XX.pdf'))
 
 
     ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
@@ -1765,10 +2053,110 @@ if(FALSE) {
         guides(fill='none') +
         theme_ang(base_size=12) +
         labs(x='Primary tumor',y='Intra-lesion angular distance') 
-    #ggsave(here('figures/ed_fig_XX.pdf'))
+    #ggsave(here('figures_and_tables/ed_fig_XX.pdf'))
 
 }
 
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Fig with angular distance simulation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+if(run_AD_simulation==T) {
+    require(parallel)
+    require(Rcpp)
+    sourceCpp(here('R/ad_simulation.cpp'))
+
+    gens_normal_to_mrca <- 1000
+    gens_mrca_to_t1 <- 1000
+    gens_mrca_to_t2 <- 1000
+
+    do_sim <- function(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, n_markers=100, mu=5e-4, repeat_lengths=seq(10,20), cv=0.002) { 
+
+        ## simulate genotypes
+        normal <- as.numeric(sample(repeat_lengths, n_markers, replace=T))
+        mrca <- drift(normal, mu, gens_normal_to_mrca)
+        t1_pure <- drift(mrca, mu, gens_mrca_to_t1)
+        t2_pure <- drift(mrca, mu, gens_mrca_to_t2)
+
+        ## add impurities (set for p2, p3, variable for p1)
+        add_impurity <- function(p1, p2, normal, t1_pure, t2_pure) { 
+            t1 <- t1_pure*p1 + (1-p1)*normal
+            t2 <- t2_pure*p2 + (1-p2)*normal
+
+            ## add technical noise to our measurements
+            normal_noisy <- rnorm(mean=normal, sd=normal*cv, n=length(normal))
+            t1_noisy <- rnorm(mean=t1, sd=t1*cv, n=length(t1))
+            t2_noisy <- rnorm(mean=t2, sd=t2*cv, n=length(t2))
+
+            ## get angular distance matrix
+            mat <- rbind(normal_noisy, t1_noisy, t2_noisy)
+            colnames(mat) <- paste0('m',1:ncol(mat))
+            AD <- angular_distance(mat)
+            rownames(AD) <- c('N','t1','t2')
+            colnames(AD) <- c('N','t1','t2')
+            AD['t1','t2'] # distance from t1 to t2
+        }
+
+        optimal <- add_impurity(p1=1, p2=1, normal, t1_pure, t2_pure)
+        p1_vals <- seq(0.01,0.99,by=0.001)
+        p2_vals <- c(0.1,0.2,0.5,0.8,0.9)
+        run_p2 <- function(p2, p1_vals) { 
+            ad <- sapply(p1_vals, add_impurity, p2=p2, normal, t1_pure, t2_pure)
+            res <- data.table(p1=p1_vals, ad=ad)
+            res$p2 <- p2
+            res
+        }
+        l <- lapply(p2_vals, run_p2, p1_vals)
+        res <- rbindlist(l)
+        res$optimal <- optimal
+        res
+    }
+
+    ## get AD between T1 and T2
+    run_sims <- function(i, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2) {
+        message(i)
+        sim <- do_sim(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2)
+        sim$sim <- i
+        sim
+    }
+
+    RNGkind("L'Ecuyer-CMRG")
+    set.seed(42)
+    l <- mclapply(1:200, run_sims, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, mc.cores=4)
+    res <- rbindlist(l)
+    res[,id:=paste0(sim,':',p2)]
+    res[,pctdiff:=100*(ad - optimal)/optimal]
+
+    optimal <- res[!duplicated(id),]
+    get_distribution <- function(res) {
+        qs <- quantile(res$pctdiff,c(0.025,0.5,0.975))
+        list(mid=qs[2], lwr=qs[1], upr=qs[3])
+    }
+    res2 <- res[,get_distribution(.SD),by=c('p1','p2')]
+    res2[,p1:=100*p1]
+    res2[,p2:=100*p2]
+    res2[,p2:=paste0(p2,'%')]
+    res2$p2 <- factor(res2$p2, levels=unique(res2$p2))
+    cols <- c('#A50F15','#EF3B2C','black','#3399CC','#08519C')
+    names(cols) <- levels(res2$p2)
+
+    p <- ggplot(res2, aes(x=p1)) +
+        scale_x_continuous(breaks=seq(0,100,by=20)) + 
+        geom_ribbon(aes(ymin=lwr, ymax=upr, fill=p2), alpha=0.4) +
+        geom_line(aes(y=mid, color=p2)) + 
+        geom_hline(yintercept=0, linewidth=0.25,linetype='dashed') +
+        scale_color_manual(values=cols, name='Sample 2 purity (%)') +
+        scale_fill_manual(values=cols, name='Sample 2 purity (%)') +
+        facet_wrap(facets=~p2,nrow=1) + 
+        theme_bw(base_size=12) +
+        theme(legend.position='bottom') +
+        labs(x='Sample 1 purity (%)', y='Angular distance (% diff from optimal)')
+    ggsave(here('figures_and_tables/ad_simulation_pctdiff.pdf'),width=10,height=3.5)
+
+}
 
 
 

@@ -1,0 +1,14 @@
+sample	tissue_type
+C38-A	darkorange
+C38-B	darkorange
+C38-C	darkorange
+C38-D	darkorange
+C38-E	darkorange
+C38-F	darkgreen
+C38-G	red
+C38-H	red
+C38-I	red
+C38-J-N1	red
+C38-J-N2	red
+C38-K	darkblue
+C38-L	red

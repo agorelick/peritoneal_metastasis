@@ -1,0 +1,10 @@
+Sample_ID	Real_Sample_ID
+C61-A	PT1
+C61-B	Liv1a
+C61-C	Normal1
+C61-C2	Normal2
+C61-Bmacro	Liv1b
+C61-D	LN1
+C61-E	PT2
+C61-F	PT3
+C61-G	PT4

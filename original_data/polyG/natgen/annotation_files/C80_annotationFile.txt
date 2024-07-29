@@ -1,0 +1,13 @@
+Sample_ID	Real_Sample_ID
+C80M1a	Liv1a
+C80M1b	Liv1b
+C80M2	Liv2
+C80M3	Liv3
+C80M4b	Liv4
+C80N1	Normal1
+C80N2	Normal2
+C80N3	Normal3
+C80P1a	PT1
+C80P1b	PT2
+C80P1c	PT3
+C80P1d	PT4

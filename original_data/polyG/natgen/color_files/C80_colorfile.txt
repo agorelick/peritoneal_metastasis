@@ -1,0 +1,14 @@
+sample	tissue_type
+C80M1a	red
+C80M1b	red
+C80M2	red
+C80M3	red
+C80M4a	red
+C80M4b	red
+C80N1	darkgreen
+C80N2	darkgreen
+C80N3	darkgreen
+C80P1a	darkorange
+C80P1b	darkorange
+C80P1c	darkorange
+C80P1d	darkorange

@@ -1,0 +1,13 @@
+sample	tissue_type
+C85L1	brown
+C85L2	brown
+C85L3	brown
+C85L4	brown
+C85L5	brown
+C85L6	brown
+C85N1	darkgreen
+C85P1a	darkorange
+C85P1b	darkorange
+C85P1c	darkorange
+C85P1d	darkorange
+C85P1e	darkorange

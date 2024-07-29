@@ -1,0 +1,9 @@
+sample	tissue_type
+C45-A	darkgreen
+C45-B	darkorange
+C45-BT	darkorange
+C45-D-T1	darkorange
+C45-E-LN	darkblue
+C45-F	darkblue
+C45-LB1	red
+C45-SB	red

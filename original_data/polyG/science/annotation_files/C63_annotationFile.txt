@@ -1,0 +1,6 @@
+Sample_ID	Real_Sample_ID
+C63-PT2	PT1
+C63-LN	LN1
+C63-N	Normal1
+C63-NL	Normal2
+C63-LM2	Liv1

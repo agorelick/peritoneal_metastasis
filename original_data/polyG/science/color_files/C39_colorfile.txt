@@ -1,0 +1,8 @@
+sample	tissue_type
+C39-1-A	darkorange
+C39-1-B-T1	tomato4
+C39-1-C-J	darkblue
+C39-1-H-Sec	darkorange
+C39-1-I-T1	tomato4
+C39-2-E	darkgreen
+C39-2-I-J	red

@@ -1,0 +1,15 @@
+sample	tissue_type
+C92L1	brown
+C92L2	brown
+C92L3	brown
+C92N1	darkgreen
+C92N2	darkgreen
+C92P1a	darkorange
+C92P1c	darkorange
+C92P1d	darkorange
+C92P1e	darkorange
+C92P1f	darkorange
+C92P1g	darkorange
+C92P1h	darkorange
+C92P1i	darkorange
+C92P1j	darkorange

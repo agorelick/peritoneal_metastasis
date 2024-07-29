@@ -1,0 +1,16 @@
+sample	tissue_type
+C79-A	darkorange
+C79-B	darkorange
+C79-C-T1	darkorange
+C79-D	darkorange
+C79-E	darkorange
+C79-F	darkorange
+C79-G	darkorange
+C79-H	darkorange
+C79-I	darkorange
+C79-J	darkorange
+C79-K	darkorange
+C79-L	darkorange
+C79-M	darkgreen
+C79-N	darkgreen
+C79-O	red

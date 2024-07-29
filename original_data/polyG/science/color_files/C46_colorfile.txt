@@ -1,0 +1,10 @@
+sample	tissue_type
+C46-A	darkorange
+C46-B	darkgreen
+C46-C	darkorange
+C46-D	darkorange
+C46-E-T1	darkorange
+C46-G	darkorange
+C46-H	red
+C46-I	darkblue
+C46-J	darkgreen

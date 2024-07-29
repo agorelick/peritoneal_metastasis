@@ -1,0 +1,11 @@
+sample	tissue_type
+MmC3B1a	gold2
+MmC3B1b	gold2
+MmC3B1c	gold2
+MmC3P1	springgreen4
+MmC3P2	springgreen4
+MmC3P3	springgreen4
+MmC3A1a	blue
+MmC3A1b	blue
+MmC3A1c	blue
+MmCLNe1	black

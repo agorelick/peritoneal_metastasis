@@ -1,0 +1,14 @@
+sample	tissue_type
+C57M1b	red
+C57M2	red
+C57M3	red
+C57M4	red
+C57M1a	red
+C57P1g	darkorange
+C57N2	darkgreen
+C57P1a	darkorange
+C57P1b	darkorange
+C57P1c	darkorange
+C57P1d	darkorange
+C57P1e	darkorange
+C57P1f	darkorange

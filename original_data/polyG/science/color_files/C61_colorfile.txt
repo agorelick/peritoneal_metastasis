@@ -1,0 +1,10 @@
+sample	tissue_type
+C61-A	darkorange
+C61-B	red
+C61-C	darkgreen
+C61-C2	darkgreen
+C61-Bmacro	red
+C61-D	darkblue
+C61-E	darkorange
+C61-F	darkorange
+C61-G	darkorange

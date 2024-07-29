@@ -1,0 +1,6 @@
+sample	tissue_type
+C63-PT2	darkorange
+C63-LN	darkblue
+C63-N	darkgreen
+C63-NL	darkgreen
+C63-LM2	red

@@ -1,0 +1,28 @@
+sample	tissue_type
+C70L1	brown
+C70L2	brown
+C70L3	brown
+C70L5	brown
+C70M4a	red
+C70M4b	red
+C70LD1cG	red
+C70LD1cP	red
+C70LD2a	red
+C70M5	red
+C70M1	red
+C70M2	red
+C70M3	red
+C70N1	darkgreen
+C70N2	darkgreen
+C70Ad1a	darkgreen
+C70Ad1b	darkgreen
+C70Ad1c	darkgreen
+C70Ad1d	darkgreen
+C70Ad1e	darkgreen
+C70P1a	dark orange
+C70P1b	dark orange
+C70P1c	dark orange
+C70P1d	dark orange
+C70P1e	dark orange
+C70Ad2	darkgreen
+C70Ad3	darkgreen

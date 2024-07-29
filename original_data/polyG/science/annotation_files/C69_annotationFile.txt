@@ -1,0 +1,15 @@
+Sample_ID	Real_Sample_ID
+C69-A	Normal1
+C69-B	PT1
+C69-C	PT2
+C69-D	PT3
+C69-E	PT4
+C69-F	PT5
+C69-G	PT6
+C69-H	LN1
+C69-I	Liv1
+C69-J	Liv2
+C69-K	Normal2
+C69-L	Liv3a
+C69-M	Liv3b
+C69-N	Liv3c

@@ -1,0 +1,10 @@
+sample	tissue_type
+C51-A	darkorange
+C51-B	darkgreen
+C51-C--firstR-	red
+C51-C--macro-	red
+C51-D	darkblue
+C51-E	darkblue
+C51-F	darkgreen
+C51-G	darkorange
+C51-H	darkorange

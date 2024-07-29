@@ -1,0 +1,12 @@
+Sample_ID	Real_Sample_ID
+C97M1a	Liv1b
+C97M1b	Liv1c
+C97M1c	Liv1a
+C97M2a	Liv2a
+C97M2b	Liv2b
+C97N1	Normal1
+C97P1a	PT1
+C97P1b	PT2
+C97P1c	PT3
+C97P1d	PT4
+C97P1e	PT5

@@ -1,0 +1,11 @@
+sample	tissue_type
+C74M1a	red
+C74M1b	red
+C74M2	red
+C74N1	darkgreen
+C74N2	darkgreen
+C74P1a	darkorange
+C74P1b	darkorange
+C74P2a	darkorange
+C74P2b	darkorange
+C74P3	darkorange

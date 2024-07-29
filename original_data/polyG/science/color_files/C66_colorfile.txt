@@ -1,0 +1,14 @@
+sample	tissue_type
+C66-A	darkgreen
+C66-B	darkgreen
+C66-C	darkorange
+C66-D	darkorange
+C66-E	darkorange
+C66-F	darkblue
+C66-G-L2	darkblue
+C66-H-L1	darkblue
+C66-H-L2	darkblue
+C66-H-L3	darkblue
+C66-J	red
+C66-K	red
+C66-L	red

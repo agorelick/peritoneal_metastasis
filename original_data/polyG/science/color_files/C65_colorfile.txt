@@ -1,0 +1,10 @@
+sample	tissue_type
+C65-A	darkgreen
+C65-B	darkorange
+C65-G	darkorange
+C65-C-LA	darkblue
+C65-C-LB	darkblue
+C65-H	darkblue
+C65-D	darkblue
+C65-E	red
+C65-F	red

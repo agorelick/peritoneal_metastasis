@@ -1,0 +1,22 @@
+sample	tissue_type
+C94L1	brown
+C94L10	brown
+C94L11	brown
+C94L2	brown
+C94L12	brown
+C94L3	brown
+C94L4	brown
+C94L5	brown
+C94L6	brown
+C94L7	brown
+C94L8	brown
+C94L9	brown
+C94N1	dark green
+C94N2	dark green
+C94N3	dark green
+C94P1a	dark orange
+C94P1b	dark orange
+C94P1c	dark orange
+C94P1d	dark orange
+C94P1e	dark orange
+C94P1f	dark orange

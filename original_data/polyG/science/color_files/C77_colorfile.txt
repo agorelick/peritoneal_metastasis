@@ -1,0 +1,9 @@
+sample	tissue_type
+C77-A	red
+C77-B	red
+C77-C	darkgreen
+C77-D	darkgreen
+C77-G	darkblue
+C77-H	darkblue
+C77-J	darkorange
+C77-K	darkorange

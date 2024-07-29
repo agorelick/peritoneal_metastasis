@@ -1,0 +1,10 @@
+Sample_ID	Real_Sample_ID
+E3N1	Normal1
+E3N4	Normal2
+E3P15c	PTc1
+E3P16c	PTc2
+E3P17c	PTc3
+E3P18c	PTc4
+E3P19c	PTc5
+E3P20c	PTc6
+E3X2	TD3

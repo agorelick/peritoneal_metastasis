@@ -1,0 +1,11 @@
+sample	tissue_type
+C53-A	darkorange
+C53-B	red
+C53-C	darkgreen
+C53-E	darkblue
+C53-F	darkorange
+C53-G	darkorange
+C53-H	darkorange
+C53-I	red
+C53-I_Nod	red
+C53-J	red

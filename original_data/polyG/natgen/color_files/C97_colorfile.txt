@@ -1,0 +1,12 @@
+sample	tissue_type
+C97M1a	red
+C97M1b	red
+C97M1c	red
+C97M2a	red
+C97M2b	red
+C97N1	darkgreen
+C97P1a	darkorange
+C97P1b	darkorange
+C97P1c	darkorange
+C97P1d	darkorange
+C97P1e	darkorange
