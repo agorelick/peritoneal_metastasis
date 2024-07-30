@@ -8,6 +8,7 @@ options(repr.plot.width=7, repr.plot.height=7)
 # - create expected directories for output
 # ~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
 message('Loading required libraries ...')
 packages <- c('ACE','ape','binom','caper','clipr','coin','colorspace','cowplot','data.table','dendextend','DescTools','dplyr','ggplot2','ggpubr','ggrepel','ggsignif','gmp','gplots','here','pals','parallel','patchwork','phangorn','phytools','QDNAseq','Quartet','RColorBrewer','readxl','reshape2','rstatix','tidyverse','TreeDist','TreeTools','viridis', 'ACE','adephylo','Biobase','GenomicRanges','ggtree','phyloseq', 'ggbeeswarm', 'rds')
 suppressMessages(trash <- lapply(packages, require, character.only = TRUE))
@@ -29,6 +30,8 @@ trash <- lapply(dirs, f)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # define functions used throughout
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg <- function(s) message('\n###  ',s,'  ####\n')
 
 theme_ang <- function (base_size = 11, base_line_size = base_size/22, base_rect_size = base_size/22) {
     require(ggplot2)

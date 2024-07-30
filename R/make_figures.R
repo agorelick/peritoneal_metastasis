@@ -1,111 +1,26 @@
+# Alexander Gorelick, 2024-07-29
+
+# Source this to load required functions, globally-used data and variables, load package dependencies
 source(here::here('R/func.R'))
-run_AD_simulation <- F # generate SI Figure XX
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# AD cartoon in Fig 1b
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-library(Rcpp)
-library(RcppArmadillo)
-library(scatterplot3d)
-sourceCpp(here('R/ad_simulation.cpp'))
-
-seed = 1722184948
-set.seed(seed); seed
-gt <- round(runif(min=10, max=14, 3))
-gt1 <- drift(gt, mu=5e-4, gens=2500)
-Liv1 <- drift(gt1, mu=5e-4, gens=1000)
-gt2 <- drift(gt1, mu=5e-4, gens=700)
-PT2 <- drift(gt2, mu=5e-4, gens=1000)
-gt3 <- drift(gt2, mu=5e-4, gens=500)
-Per1 <- drift(gt3, mu=5e-4, gens=600)
-PT1 <- drift(gt3, mu=5e-4, gens=900)
-m <- as.matrix(rbind(gt, PT1, PT2,  Per1, Liv1))
-rownames(m)[1] <- 'N1'
-Z  <- angular_distance(m, return_Z=1) 
-rownames(Z) <- rownames(m)
-
-## ring with x=0
-r <- 1
-phi <- pi/2
-theta <- seq(0,2*pi,by=0.001)
-x <- r*sin(theta)*cos(phi)
-y <- r*sin(theta)*sin(phi)
-z <- r*cos(theta)
-dat_x0 <- as.matrix(data.table(x=x, y=y, z=z))
-
-## ring with y=0
-r <- 1
-phi <- 0
-theta <- seq(0,2*pi,by=0.001)
-x <- r*sin(theta)*cos(phi)
-y <- r*sin(theta)*sin(phi)
-z <- r*cos(theta)
-dat_y0 <- as.matrix(data.table(x=x, y=y, z=z))
-
-## ring with z=0
-r <- 1
-phi <- seq(0,2*pi,by=0.001)
-theta <- pi/2
-x <- r*sin(theta)*cos(phi)
-y <- r*sin(theta)*sin(phi)
-z <- r*cos(theta)
-dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
-
-## Per1 ring
-r <- 1
-phi <- seq(0,2*pi,by=0.001)
-theta <- pi/2
-x <- r*sin(theta)*cos(phi)
-y <- r*sin(theta)*sin(phi)
-z <- r*cos(theta)
-dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
-
-tmp <- as.data.table(rbind(Z, dat_x0, dat_y0, dat_z0))
-tmp$pch <- 1
-tmp$pch[1:5] <- 16
-tmp$size <- 0.25
-tmp$size[1:5] <- 2.5
-tmp$color <- '#bfbfbf'
-tmp$color[1:5] <- 'blue'
-
-pdf(here('figures_and_tables/fig1b_center.pdf'))
-s <- 1
-zz <- scatterplot3d(x=tmp[[1]],y=tmp[[2]], z=tmp[[3]],xlab="marker1",ylab="marker2",zlab="marker3", grid = TRUE,
-                    xlim=c(-s,s), ylim=c(-s,s), zlim=c(-s,s), main='Fig1b, center',cex.symbols=tmp$size, pch=tmp$pch, color=tmp$color)
-zz.coords <- zz$xyz.convert(Z[,1], Z[,2], Z[,3]) 
-text(zz.coords$x[1:5], 
-     zz.coords$y[1:5],             
-     labels = rownames(Z)[1:5],
-     cex = 1,
-     pos = 4)
-message(seed)
-dev.off()
-
-ad <- angular_distance(m) 
-rownames(ad) <- rownames(m); colnames(ad) <- rownames(m)
-tree <- nj(ad)
-tree <- phytools::reroot(tree, which(tree$tip.label=='N1'))
-tree <- ape::rotate(tree, 9)
-p <- ggtree(tree, layout='ape')
-p <- p + geom_tiplab(angle=0) + ggtitle('Fig 1b, right')
-ggsave(here('figures_and_tables/fig1b_right.pdf'))
-
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # make annotated poly-G trees for each patient
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+## Note: C38's tree includes 3 samples (Sat1/2, VI1) which are not used in any analyses due to being non-standard tissue types.
+## I included have included in the tree generated here for completeness (see: R/func.R:make_tree) 
+## but they are removed from the following files:
+## - processed_data/angular_distance_matrices/C38.txt
+## - processed_data/angular_distance_matrices_bootstrapped/C38.rds
+
 valid_patients <- unique(sample_info[cohort %in% c('science','natgen','peritoneal') & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
 valid_patients <- sort(c(valid_patients,'E3'))
 trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures_and_tables/polyg_trees'), show.bsvals=T, min.bsval.shown=0)
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# number of poly-G genotypes (PCRs) overall
+# get the number of poly-G PCRs and markers/patient
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 prospective_patients <- unique(sample_info[cohort=='peritoneal' & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
@@ -132,28 +47,6 @@ l <- rbindlist(l)
 message('N poly-G genotypes overall: ',sum(l$genotypes))
 message('N markers/patient: ',min(l$n_markers),'-',max(l$n_markers),'; mu=',round(mean(l$n_markers),1))
 
-
-
-
-# number of markers per patient
-get_patient_markers <- function(patient) {
-    message(patient)
-    ## get the list of marker files for this patient
-    directory <- here(paste0('original_data/polyG/peritoneal/data/',patient,'-Data'))
-    marker_files <- dir(directory, full.name=T)
-
-    ## get the number of genotypes (the number of samples X replicates for each marker) 
-    count_genotypes=function(file) {
-        dd <- fread(file)
-        genotypes <- ncol(dd) 
-        genotypes
-    }
-    genotypes <- sum(sapply(marker_files, count_genotypes, USE.NAMES=F))
-    list(patient=patient, genotypes=genotypes)
-}
-l <- lapply(prospective_patients, get_patient_genotypes)
-l <- rbindlist(l)
-message('N poly-G genotypes overall: ',sum(l$genotypes))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -189,6 +82,7 @@ table_freq(x$group)
 # Fig1a
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 1a')
 si <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
 
 ## merge the E3 multi-primary data into a single patient
@@ -406,9 +300,107 @@ p <- plot_grid(p_heatmap_lesions, p_heatmap_samples, p_stage, p_location, p_timi
 ggsave(here('figures_and_tables/fig_1a.pdf'),width=9, height=9)
 
 
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Fig 1b. Simulated poly-G genotypes, hypersphere, AD tree
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 1b')
+library(Rcpp)
+library(RcppArmadillo)
+library(scatterplot3d)
+sourceCpp(here('R/ad_simulation.cpp'))
+
+seed = 1722184948
+set.seed(seed)
+gt <- round(runif(min=10, max=14, 3))
+gt1 <- drift(gt, mu=5e-4, gens=2500)
+Liv1 <- drift(gt1, mu=5e-4, gens=1000)
+gt2 <- drift(gt1, mu=5e-4, gens=700)
+PT2 <- drift(gt2, mu=5e-4, gens=1000)
+gt3 <- drift(gt2, mu=5e-4, gens=500)
+Per1 <- drift(gt3, mu=5e-4, gens=600)
+PT1 <- drift(gt3, mu=5e-4, gens=900)
+m <- as.matrix(rbind(gt, PT1, PT2,  Per1, Liv1))
+rownames(m)[1] <- 'N1'
+Z  <- angular_distance(m, return_Z=1) 
+rownames(Z) <- rownames(m)
+
+## ring with x=0
+r <- 1
+phi <- pi/2
+theta <- seq(0,2*pi,by=0.001)
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_x0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## ring with y=0
+r <- 1
+phi <- 0
+theta <- seq(0,2*pi,by=0.001)
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_y0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## ring with z=0
+r <- 1
+phi <- seq(0,2*pi,by=0.001)
+theta <- pi/2
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+## Per1 ring
+r <- 1
+phi <- seq(0,2*pi,by=0.001)
+theta <- pi/2
+x <- r*sin(theta)*cos(phi)
+y <- r*sin(theta)*sin(phi)
+z <- r*cos(theta)
+dat_z0 <- as.matrix(data.table(x=x, y=y, z=z))
+
+tmp <- as.data.table(rbind(Z, dat_x0, dat_y0, dat_z0))
+tmp$pch <- 1
+tmp$pch[1:5] <- 16
+tmp$size <- 0.25
+tmp$size[1:5] <- 2.5
+tmp$color <- '#bfbfbf'
+tmp$color[1:5] <- 'blue'
+
+pdf(here('figures_and_tables/fig1b_center.pdf'))
+s <- 1
+zz <- scatterplot3d(x=tmp[[1]],y=tmp[[2]], z=tmp[[3]],xlab="marker1",ylab="marker2",zlab="marker3", grid = TRUE,
+                    xlim=c(-s,s), ylim=c(-s,s), zlim=c(-s,s), main='Fig1b, center',cex.symbols=tmp$size, pch=tmp$pch, color=tmp$color)
+zz.coords <- zz$xyz.convert(Z[,1], Z[,2], Z[,3]) 
+text(zz.coords$x[1:5], 
+     zz.coords$y[1:5],             
+     labels = rownames(Z)[1:5],
+     cex = 1,
+     pos = 4)
+message(seed)
+dev.off()
+
+ad <- angular_distance(m) 
+rownames(ad) <- rownames(m); colnames(ad) <- rownames(m)
+tree <- nj(ad)
+tree <- phytools::reroot(tree, which(tree$tip.label=='N1'))
+tree <- ape::rotate(tree, 9)
+p <- ggtree(tree, layout='ape')
+p <- p + geom_tiplab(angle=0) + ggtitle('Fig 1b, right')
+ggsave(here('figures_and_tables/fig1b_right.pdf'))
+
+
+
+
+
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # SI Table 1 (Patient clinical data table)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('SI Table 1')
 
 patient_info <- fread(here('original_data/misc/patient_info.txt'))
 patient_info[PATIENT_ID=='Ea3',Nstage:='+']
@@ -480,6 +472,8 @@ write_tsv(patient_info,here('figures_and_tables/supp_table1.txt'))
 # SI Table 4 Timing, treatment
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('SI Table 4')
+
 sample_info <- fread(here('processed_data/sample_info.txt'))
 sample_info <- sample_info[Patient_ID %in% patient_info$PATIENT_ID]
 sample_info[met_timing %in% 'metachronous after synchronous', met_timing:='metachronous']
@@ -526,6 +520,8 @@ write_tsv(out,here('figures_and_tables/supp_table4.txt'))
 # Fig 1c-d. C161 SCNA tree
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 1c-d')
+
 sample_info <- fread(here('processed_data/sample_info.txt'))
 groups <- sample_info[Patient_ID=='C161',c('Real_Sample_ID','group'),with=F]
 setnames(groups,'Real_Sample_ID','label')
@@ -568,6 +564,7 @@ ggsave(here('figures_and_tables/fig_1cd.pdf'),width=9, height=6)
 # Fig 1e. Violin plot similarity between SCNA and poly-G trees 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 1e')
 patients <- c('C146','C154','C157','C159','C161','C186')
 
 extract_polyg_scna_tree_similarity <- function(patient) {
@@ -611,6 +608,7 @@ ggsave(here('figures_and_tables/fig_1e.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 source(here('R/func.R')) # run this again to re-load the sample_info data
+fig_msg('Fig 2e')
 
 ## define applicable patients (peritoneum, with per cohort + C38, C89; and all liver-met patients)
 per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
@@ -673,6 +671,8 @@ ggsave(here('figures_and_tables/fig_2e.pdf'))
 # Fig 2F. pairwise AD compared between tissue types
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 2f')
+
 ## define applicable patients (peritoneum, with per cohort + C38, C89; and all liver-met patients)
 per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
 liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
@@ -713,6 +713,8 @@ ggsave(here('figures_and_tables/fig_2f.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 2G. all-timing intra-lesion heterogeneity
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 2g')
 
 ## define applicable patients (peritoneum, with per cohort + C38, C89)
 per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
@@ -761,10 +763,11 @@ p <- ggplot(res[group1 %in% c('Peritoneum','Liver')], aes(x=group1, y=distance))
 ggsave(here('figures_and_tables/fig_2g.pdf'))
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 3a. RDS compared between tissue types with only untreated/synchronous mets
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 3a')
 
 ## define applicable patients (peritoneum, with per cohort + C38, C89; and all liver-met patients)
 per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
@@ -841,6 +844,8 @@ ggsave(here('figures_and_tables/fig_3a.pdf'))
 # Fig 3b. PM RDS: synchronous/untreated vs metachronous/chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 3b')
+
 si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='rds', distance='node', return_tree=F)
 res1 <- res1[type=='Met',]
@@ -874,6 +879,8 @@ ggsave(here('figures_and_tables/fig_3b.pdf'))
 # Fig 3c. PM inter-lesion AD: synchronous/untreated vs metachronous/chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 3c')
+
 si1 <- sample_info[Patient_ID %in% per_patients & in_collapsed==T & (group %in% c('Normal','Primary') | (group=='Peritoneum' & met_treated_type=='systemic chemo' & met_timing %in% c('metachronous','metachronous after synchronous')))]
 res1 <- get_met_specific_distances(si1, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res1 <- res1[group1=='Metastasis' & group2=='Metastasis']
@@ -901,11 +908,11 @@ p <- ggplot(res_per, aes(x=class, y=distance)) +
 ggsave(here('figures_and_tables/fig_3c.pdf'))
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 3d. Liver RDS synchronous+untreated vs metachronous chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('Fig 3d')
 liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
@@ -951,7 +958,7 @@ p <- ggplot(res, aes(x=class, y=RDS)) +
     stat_pvalue_manual(stat.test, label = "label", tip.length = 0.02, y.position=1.05) +
     scale_fill_manual(values=group_cols,name='Tissue type') + 
     theme_ang(base_size=12) +
-    labs(x=NULL,y='RDS',title='Fig 3d. Met-specific RDS vs treatment')
+    labs(x=NULL,y='RDS',title='Fig 3d')
 ggsave(here('figures_and_tables/fig_3d.pdf'))
 
 
@@ -959,6 +966,8 @@ ggsave(here('figures_and_tables/fig_3d.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 3e. Liver inter-lesion AD synchronous+untreated vs metachronous chemo
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 3e')
 
 liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
 
@@ -991,10 +1000,11 @@ p <- ggplot(res, aes(x=class, y=distance)) +
 ggsave(here('figures_and_tables/fig_3e.pdf'))
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 3h. PM vs Liver (synchronous, untreated) intra-lesion AD
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 3h')
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum')] 
@@ -1026,10 +1036,11 @@ p <- ggplot(res, aes(x=group1, y=distance)) +
 ggsave(here('figures_and_tables/fig_3h.pdf'))
 
 
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 3i. PM vs Liver (untreated, any timing) intra-lesion AD
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 3i')
 
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum')] 
@@ -1044,13 +1055,6 @@ si2 <- si2[group %in% c('Normal','Primary') | (met_treated_type!='systemic chemo
 res2 <- get_met_specific_distances(si2, ad_table, comparison='pairwise', distance='angular', return_tree=F)
 res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
 res2$group1 <- 'Liver'; res2$group2 <- 'Liver'; res2$class <- 'Liv:Liv'
-
-# wrong version
-#si2 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver')]
-#si2 <- si2[group %in% c('Normal','Primary') | (met_treated=='untreated')]
-#res2 <- get_met_specific_distances(si2, ad_table, comparison='pairwise', distance='angular', return_tree=F)
-#res2 <- res2[group1=='Metastasis' & group2=='Metastasis']
-#res2$group1 <- 'Liver'; res2$group2 <- 'Liver'; res2$class <- 'Liv:Liv'
 
 res <- rbind(res1, res2)
 res <- subset_for_intralesion(res)
@@ -1072,6 +1076,8 @@ ggsave(here('figures_and_tables/fig_3i.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 4b. sync metastases types vs t-stage
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 4b')
 
 m <- read_distance_matrix(here('original_data/misc/lemmens_ijc_2011.txt'))
 m <- m[rownames(m)!='Tx',]
@@ -1110,7 +1116,14 @@ ggsave(here('figures_and_tables/fig_4b.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 4e. permutation-test for association between PMs and deep/luminal PTs
 # ED Fig 6. same thing for LN, TD, Liver mets
+#
+# Note: this code may take 10+ min to run. I have included a pregenerated output file
+# for convenience:
+# processed_data/misc/tissue_type_vs_depth_permutation_tests.txt
+# This will be regenerated if the file is deleted.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 4e, ED Fig 7')
 
 test <- function(i, res) {
     if(i > 0) {
@@ -1207,7 +1220,7 @@ if(!file.exists(required_file)) {
     results[,frac_deep:=n_deep / (n_deep+n_lum)]
     write_tsv(results,required_file)
 } else {
-    message('Using pre-processed file: ',required_file)
+    message('Using pre-processed file: ',required_file,'.\nDelete this file and re-run if you want to regenerate it (may take 10+ min to run).')
     results <- fread(required_file)
 }
 
@@ -1244,13 +1257,14 @@ p <- ggplot(results[group!='Peritoneum'], aes(x=lfc, y=nlog10q)) +
     theme_bw(base_size=12) +
     labs(x='Effect size', y='-log10(q-value)', title='ED Fig 7') +
     theme(legend.position='none')
-ggsave(here('figures_and_tables7ed_fig_7.pdf'), width=9, height=3.5)
-
+ggsave(here('figures_and_tables/ed_fig_7.pdf'), width=9, height=3.5)
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 4f. AD between met and deep/luminal PTs
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 4f')
 
 ## get patients with any peritoneal mets and with any liver mets
 per_patients <- unique(sample_info[group=='Peritoneum','Patient_ID',with=F][[1]])
@@ -1361,6 +1375,8 @@ p1 <- ggplot(pd1, aes(x=vertical, y=distance)) +
     labs(x='Invasion depth of primary tumor', y='Angular distance',title='Fig 4f')
 ggsave(here('figures_and_tables/fig_4f.pdf'), width=6, height=4.5)
 
+fig_msg('Fig 4g')
+
 
 p2 <- ggplot(pd2, aes(x=vertical, y=distance)) +
     scale_y_continuous(limits=c(0,2.25),breaks=seq(0,2.35,by=0.5)) +
@@ -1384,6 +1400,8 @@ ggsave(here('figures_and_tables/fig_4g.pdf'), width=6, height=4.5)
 # 2024-07-23
 # Fig 5d
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 5d')
 
 test_patient_met_level <- function(patient, si, ad_table, query_group, comparitor_group, ncpus) { 
     message(patient)
@@ -1476,6 +1494,8 @@ if(!file.exists(expected_file)) {
     res[,query:='Peritoneum']
     res[,comparitor:='Distant']
     write_tsv(res,expected_file)
+} else {
+    message('Using pre-processed file: ',expected_file,'.\nDelete this file and re-run if you want to regenerate it (may take a few min to run).')
 }
 
 # Fig 5d-ii, common/distinct origin of LNs and distant mets
@@ -1496,6 +1516,8 @@ if(!file.exists(expected_file)) {
     res[,query:='Lymph node']
     res[,comparitor:='Distant']
     write_tsv(res,expected_file)
+} else {
+    message('Using pre-processed file: ',expected_file,'.\nDelete this file and re-run if you want to regenerate it (may take a few min to run).')
 }
 
 # Fig 5d-iii, common/distinct origin of TDs and distant mets
@@ -1516,6 +1538,8 @@ if(!file.exists(expected_file)) {
     res[,query:='Tumor deposit']
     res[,comparitor:='Distant']
     write_tsv(res,expected_file)
+} else {
+    message('Using pre-processed file: ',expected_file,'.\nDelete this file and re-run if you want to regenerate it (may take a few min to run).')
 }
 
 # Fig 5d-iv, common/distinct origin of Liver mets and other DMs (which may include Liver mets) 
@@ -1540,6 +1564,8 @@ if(!file.exists(expected_file)) {
     res[,query:='Liver']
     res[,comparitor:='Distant']
     write_tsv(res,expected_file)
+} else {
+    message('Using pre-processed file: ',expected_file,'.\nDelete this file and re-run if you want to regenerate it (may take a few min to run).')
 }
 
 
@@ -1585,6 +1611,7 @@ p1 <- ggplot(pd, aes(x=percentile, y=obs)) +
 ggsave(here('figures_and_tables/fig_5d.pdf'), height=6.5, width=6)
 
 
+fig_msg('Fig 5f')
 
 stat.test1 <- mywilcox2(res[group %in% c('Peritoneum','Locoregional')], obs ~ group, paired=F)
 stat.test1$y.position <- 3.25
@@ -1617,6 +1644,8 @@ m1 <- lm(obs ~ group_factor + comparitor_pt_ratio, data=res); summary(m1)
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 5e. Liver/PM origins vs relative timing
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Fig 5e')
 
 ## test bucket 1,2,3 for shared origins with PMs
 info <- fread(here('processed_data/pm_cohort_per_and_liver_case_samples.txt'))
@@ -1659,13 +1688,13 @@ ggsave(here('figures_and_tables/fig_5e.pdf'))
 # ED Fig 1. correlation between primary tumor size and number of regions sampled
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('ED Fig 1')
+
 d <- fread(here('original_data/misc/primary_sizes_and_num_regions.txt'))
 tst <- cor.test(d$pt_size_cm, d$pt_regions_sampled, method='pearson')
 fit <- lm(pt_regions_sampled ~ pt_size_cm, data=d)
 coefs <- as.data.frame(summary(fit)$coef)
-label1 <- paste0('Pearson R=',round(tst$estimate,2),', p=',prettyNum(tst$p.value,digits=2))
-label2 <- paste0('fit line intercept=',round(coefs[1,1], 2),', slope=',round(coefs[2,1], 2))
-label <- paste(label1,label2,sep='\n')
+label <- paste0('Pearson R=',round(tst$estimate,2),', p=',prettyNum(tst$p.value,digits=2))
 p <- ggplot(d, aes(x=pt_size_cm, y=pt_regions_sampled)) + 
     geom_point(pch=16,size=4,color='#008C45') + 
     geom_smooth(method='lm') +
@@ -1679,6 +1708,8 @@ ggsave(here('figures_and_tables/ed_fig_1.pdf'))
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ED Fig 3a. multi-primary tumor origins
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('ED Fig 3a')
 
 # function to get mean lengths 
 get_markerlengths  <- function(dir) { 
@@ -1883,6 +1914,7 @@ ggsave(here('figures_and_tables/ed_fig_3a.pdf'))
 # ED Fig 3b. intra-lesion in E15 between PTa and PTb
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('ED Fig 3b')
 ## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
 ad <- ad_table[['E15']]
 da <- ad[grepl('PTa',rownames(ad)), grepl('PTa',colnames(ad))]
@@ -1914,6 +1946,7 @@ ggsave(here('figures_and_tables/ed_fig_3b.pdf'))
 # ED Fig 4b. Mouse data
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('ED Fig 4b')
 m <- fread(here('original_data/misc/SDI_sliding_window_nBins_10_nIterations_10_RGB_sum_min_50_sameRGBexcluded_FALSE.csv'))
 m[organ=='CAECUM', group:='Primary']
 m[organ=='LIVER', group:='Liver']
@@ -1941,6 +1974,7 @@ ggsave(here('figures_and_tables/ed_fig_4.pdf'),width=6, height=4.5)
 # ED Fig 5. Chemo simulation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+fig_msg('ED Fig 5')
 library(vegan)
 library(Rcpp)
 library(RcppArmadillo)
@@ -1986,111 +2020,20 @@ ggsave(here('figures_and_tables/ed_fig_5bc.pdf'),width=6, height=8)
 
 
 
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SI Fig with angular distance simulation
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-if(run_AD_simulation==T) {
-    require(parallel)
-    require(Rcpp)
-    sourceCpp(here('R/ad_simulation.cpp'))
-
-    gens_normal_to_mrca <- 1000
-    gens_mrca_to_t1 <- 1000
-    gens_mrca_to_t2 <- 1000
-
-    do_sim <- function(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, n_markers=100, mu=5e-4, repeat_lengths=seq(10,20), cv=0.002) { 
-
-        ## simulate genotypes
-        normal <- as.numeric(sample(repeat_lengths, n_markers, replace=T))
-        mrca <- drift(normal, mu, gens_normal_to_mrca)
-        t1_pure <- drift(mrca, mu, gens_mrca_to_t1)
-        t2_pure <- drift(mrca, mu, gens_mrca_to_t2)
-
-        ## add impurities (set for p2, p3, variable for p1)
-        add_impurity <- function(p1, p2, normal, t1_pure, t2_pure) { 
-            t1 <- t1_pure*p1 + (1-p1)*normal
-            t2 <- t2_pure*p2 + (1-p2)*normal
-
-            ## add technical noise to our measurements
-            normal_noisy <- rnorm(mean=normal, sd=normal*cv, n=length(normal))
-            t1_noisy <- rnorm(mean=t1, sd=t1*cv, n=length(t1))
-            t2_noisy <- rnorm(mean=t2, sd=t2*cv, n=length(t2))
-
-            ## get angular distance matrix
-            mat <- rbind(normal_noisy, t1_noisy, t2_noisy)
-            colnames(mat) <- paste0('m',1:ncol(mat))
-            AD <- angular_distance(mat)
-            rownames(AD) <- c('N','t1','t2')
-            colnames(AD) <- c('N','t1','t2')
-            AD['t1','t2'] # distance from t1 to t2
-        }
-
-        optimal <- add_impurity(p1=1, p2=1, normal, t1_pure, t2_pure)
-        p1_vals <- seq(0.01,0.99,by=0.001)
-        p2_vals <- c(0.1,0.2,0.5,0.8,0.9)
-        run_p2 <- function(p2, p1_vals) { 
-            ad <- sapply(p1_vals, add_impurity, p2=p2, normal, t1_pure, t2_pure)
-            res <- data.table(p1=p1_vals, ad=ad)
-            res$p2 <- p2
-            res
-        }
-        l <- lapply(p2_vals, run_p2, p1_vals)
-        res <- rbindlist(l)
-        res$optimal <- optimal
-        res
-    }
-
-    ## get AD between T1 and T2
-    run_sims <- function(i, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2) {
-        message(i)
-        sim <- do_sim(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2)
-        sim$sim <- i
-        sim
-    }
-
-    RNGkind("L'Ecuyer-CMRG")
-    set.seed(42)
-    l <- mclapply(1:200, run_sims, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, mc.cores=4)
-    res <- rbindlist(l)
-    res[,id:=paste0(sim,':',p2)]
-    res[,pctdiff:=100*(ad - optimal)/optimal]
-
-    optimal <- res[!duplicated(id),]
-    get_distribution <- function(res) {
-        qs <- quantile(res$pctdiff,c(0.025,0.5,0.975))
-        list(mid=qs[2], lwr=qs[1], upr=qs[3])
-    }
-    res2 <- res[,get_distribution(.SD),by=c('p1','p2')]
-    res2[,p1:=100*p1]
-    res2[,p2:=100*p2]
-    res2[,p2:=paste0(p2,'%')]
-    res2$p2 <- factor(res2$p2, levels=unique(res2$p2))
-    cols <- c('#A50F15','#EF3B2C','black','#3399CC','#08519C')
-    names(cols) <- levels(res2$p2)
-
-    p <- ggplot(res2, aes(x=p1)) +
-        scale_x_continuous(breaks=seq(0,100,by=20)) + 
-        geom_ribbon(aes(ymin=lwr, ymax=upr, fill=p2), alpha=0.4) +
-        geom_line(aes(y=mid, color=p2)) + 
-        geom_hline(yintercept=0, linewidth=0.25,linetype='dashed') +
-        scale_color_manual(values=cols, name='Sample 2 purity (%)') +
-        scale_fill_manual(values=cols, name='Sample 2 purity (%)') +
-        facet_wrap(facets=~p2,nrow=1) + 
-        theme_bw(base_size=12) +
-        theme(legend.position='bottom') +
-        labs(x='Sample 1 purity (%)', y='Angular distance (% diff from optimal)')
-    ggsave(here('figures_and_tables/ad_simulation_pctdiff.pdf'),width=10,height=3.5)
-
-}
-
-
-
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # ED Fig 2. WES data for C157
+#
+# Note: this workflow has many steps, some of which require using separate software which can
+# not be added to this Conda package due to dependency conflicts. These steps are 
+# described in comments below. The output files from these steps have been pre-generated and
+# included in this package. However, this pre-generated output can be replicated
+# by installing the specified software locally and running the commented-out lines.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+
+#######################
+# Step 1, load WES mutation calls and 
+# annotate their trinucleotide signatures
 #######################
 
 ## load additional packages
@@ -2132,9 +2075,8 @@ length(unique(d$ShortVariantID))
 
 
 #######################
-# first flag any mutations with insufficient detection power
-# - after reviewing them, safe to exclude them from all samples 
-# (all but 3 are not oncogenic, 3 are possible oncogenic but never clonal)
+# Step 2.
+# flag any mutations with insufficient detection power
 #######################
 
 ## estimate the probability of detecting a mutation at that position given 20% CCF, MCN=1, and TCN/purity observed
@@ -2143,12 +2085,15 @@ d[Chromosome %in% c('X','Y'),total_copies:=purity * tcn + (1-purity) * 1] # C157
 d[,prob_fragment_ccf0.2_MCN1 := 1 * purity * 0.2 / total_copies] 
 d[,power_ccf0.2_MCN1:=1-dbinom(x=0, size=d$t_depth, prob=prob_fragment_ccf0.2_MCN1)]  ## prob of detecting 1+ alt reads
 d[power_ccf0.2_MCN1 < 0.9 & t_alt_count==0, t_alt_count:=NA] ## ambiguous sites
-bad_variants <- check_if_ever_clonal$ShortVariantID
+
+## remove variants with insufficient detectability in 1+ samples
+underpowered <- d[is.na(t_alt_count),c('ShortVariantID','Hugo_Symbol','HGVSp_Short','Variant_Classification','Tumor_Sample_Barcode','ONCOGENIC','MUTATION_EFFECT','GENE_IN_ONCOKB'),with=F]
+bad_variants <- underpowered$ShortVariantID
 length(unique(bad_variants))
 d <- d[!ShortVariantID %in% bad_variants]
 d[Variant_Classification=='Splice_Site', Protein_position:=gsub('p[.]X','',gsub('_splice','',HGVSp_Short))]
 
-## add ABSENT class to clonality
+## now add ABSENT class to clonality
 d[t_alt_count==0, clonality:='ABSENT']
 
 ## clarify INDETERMINATE clonality
@@ -2157,10 +2102,12 @@ d[clonality=='INDETERMINATE' & t_alt_count > 0 & ccf_expected_copies_upper >= 0.
 
 
 #######################
-# next, remove potential FFPE artifacts.
-# Here, we find all mutations that are BOTH of:
-# 1. C>T
-# 2. only detected (subclonally) in 1 sample
+# Step 3.
+# Remove potential FFPE artifacts.
+# Here, we find all mutations that are ALL of:
+# 1. C>T signature
+# 2. Not predicted to be oncogenic
+# 3. only detected (subclonally) in 1 sample
 #######################
 
 collapse_mutations <- function(d) {
@@ -2169,18 +2116,26 @@ collapse_mutations <- function(d) {
     list(clonal=affected_clonal, notclonal=affected_notclonal)
 }
 ever_clonal <- d[,collapse_mutations(.SD), by=c('ShortVariantID','muttype6','ONCOGENIC','MUTATION_EFFECT')]
-bad_variants <- ever_clonal[clonal==0 & notclonal==1 & muttype6=='C>T',(ShortVariantID)]
+bad_variants <- ever_clonal[(clonal==0 & notclonal==1) & !ONCOGENIC %in% c('Oncogenic','Likely Oncogenic') & muttype6=='C>T',(ShortVariantID)]
 length(unique(bad_variants))  # 57
 d2 <- d[!ShortVariantID %in% bad_variants]
 length(unique(d2$ShortVariantID))
 
+
+#######################
+# Step 4.
+# Extra filters to clean up data
+# - Subset for coding/silent mutations
+# - refine mutation names
+# - remove variants with missing copy number values due to gaps in
+#   FACETS segmentation
+#######################
 
 ## subset for valid mutation types 
 valid_classes <- c('Missense_Mutation','Nonsense_Mutation','Splice_Site','Translation_Start_Site','Silent','In_Frame_Ins','In_Frame_Del','Frame_Shift_Ins','Frame_Shift_Del')
 length(unique(d2[!Variant_Classification %in% valid_classes,(ShortVariantID)]))
 d3 <- d2[Variant_Classification %in% valid_classes,]
 length(unique(d3$ShortVariantID))
-
 
 ## format mutation names
 parse <- function(aapos) {
@@ -2196,21 +2151,30 @@ map <- fread(here('original_data/wes/sample_map.txt'))
 map$Sample_ID <- gsub('C157','',map$Sample_ID)
 d3 <- merge(d3, map, by.x='Tumor_Sample_Barcode', by.y='Sample_ID', all.x=T)
 
-## these mutations have NA copy number data in some sample
+## these mutations have NA copy number data in some sample (excluding LN2b, as we aren't using LN2b for the clone-phylogeny)
 bad_variants <- unique(d3[Real_Sample_ID!='LN2b' & (is.na(tcn) | tcn==0 | is.na(lcn)),(ShortVariantID)])
 length(bad_variants) 
 qc <- d3[ShortVariantID %in% bad_variants & (ONCOGENIC %in% c('Likely Oncogenic','Oncogenic') | c(GENE_IN_ONCOKB==T & MUTATION_EFFECT %in% c('Loss-of-function','Likely Loss-of-function')))]
 
+## standardize data when 0 ALT reads or TCN==0
+d3[t_alt_count==0 | tcn==0, c('ccf_expected_copies','clonality'):=list(0,'ABSENT')]
+
+## make clonality classifications
+d3[clonality=='ABSENT', clonality_3cati:=0]
+d3[clonality=='SUBCLONAL', clonality_3cati:=1]
+d3[clonality=='CLONAL', clonality_3cati:=2]
+
 ## 'maf' will be our cleaned up mutation data
 maf <- d3[!ShortVariantID %in% bad_variants,]
 
-## standardize data when 0 ALT reads or TCN==0
-maf[t_alt_count==0 | tcn==0, c('ccf_expected_copies','clonality'):=list(0,'ABSENT')]
 
-## make clonality classifications
-maf[clonality=='ABSENT', clonality_3cati:=0]
-maf[clonality=='SUBCLONAL', clonality_3cati:=1]
-maf[clonality=='CLONAL', clonality_3cati:=2]
+#######################
+# Step 5.
+# Save a distance matrix based on Euclidean distance 
+# between samples' CCFs.
+# NB. This includes LN2b, because it will be used for to compare a
+# CCF distance-based tree to Poly-G and SCNA trees
+#######################
 
 ## save CCF distance matrix
 dat <- data.table::dcast(ShortVariantID ~ Real_Sample_ID, value.var='ccf_expected_copies', data=maf)
@@ -2221,11 +2185,12 @@ write_distance_matrix(dm, here('processed_data/wes/ccf_distance_matrix_allsample
 
 
 #######################
-# make sample/mutation CCF matrix
+# Step 6.
+# make sample/mutation CCF matrix for clone-tree inferrence.
+# This will exclude LN2b due to its extreme number of private mutations.
+# Only variants which are clonal in at least one (non-LN2b) sample will be retained.
 #######################
 
-## heatmap showing the clonal status of mutations that are EVER clonal in any sample
-## note: we remove sample LN2b as it has too many mutations and is likely artifactual
 summarize <- function(maf) {
     clonal=length(unique(maf$ShortVariantID[maf$clonality=='CLONAL']))
     subclonal=length(unique(maf$ShortVariantID[maf$clonality=='SUBCLONAL']))
@@ -2255,9 +2220,12 @@ write_distance_matrix(ccf_matrix, here('processed_data/wes/sample_mutation_ccf_m
 
 
 #######################
-# make sample/mutation CCF matrix
+# Step 7.
+# Use the removegarbage utility from pairtree to flag
+# mutations that violate ISA
+# After removing any such mutations, save data to
+# be used as input to PyClone-vi
 #######################
-
 
 prep_data_for_pyclone <- function(maf, ccf_matrix) {
     out <- maf[,c('Real_Sample_ID','tm','t_ref_count','t_alt_count','Chromosome','tcn','lcn','purity'),with=F]
@@ -2369,18 +2337,16 @@ prep_data_for_pairtree <- function(maf, ccf_matrix, file_from_pyclone=NA) {
     list(ssm=ssm, params=params)
 }
 
-
-## before any clustering, use pairtree's removegarbage utility to flag bad mutations
+## generate data that is formatted for pairtree using the above functions
 pt <- prep_data_for_pairtree(maf, ccf_matrix)
 write_tsv(pt$ssm,here('processed_data/wes/data_for_pairtree.ssm'))
 cat(pt$params, file=here('processed_data/wes/data_for_pairtree.json'))
 
-
-#### flag garbage
+## Use the 'removegarbage' utility from pairtree to remove mutations that violate ISA
+## NB: the output from this command is pregenerated and included in this repo. Install pairtree and run the following line to recreate it.
 # pairtree/bin/removegarbage processed_data/wes/data_for_pairtree.ssm processed_data/wes/data_for_pairtree.json processed_data/wes/pairtree_output_garbage_flagged.json --seed 123
 
-
-## create data for pyclone-vi clustering AFTER removing the garbage mutations
+## Read the data from removegarbage, then exclude any flagged variants. Save the resulting data to use as input for PyClone-vi
 j <- rjson::fromJSON(file=here('processed_data/wes/pairtree_output_garbage_flagged.json'))
 garbage <- j$garbage
 tmp <- pt$ssm[,c('name','id'),with=F]
@@ -2391,18 +2357,24 @@ data_for_pyclone <- prep_data_for_pyclone(maf_nogarbage, ccf_matrix_nogarbage)
 write_tsv(data_for_pyclone, here('processed_data/wes/data_for_pyclone.tsv'))
 
 
-## run pyclone
+#######################
+# Step 8.
+# Run PyClone-vi to cluster mutations into putative clones.
+# Then visualize the resulting data to QC it.
+# Will will then manually review each cluster and split up high-variance clusters and remove noisy variants
+#######################
+
+## First run of PyClone-vi.
+## NB: the output from this command is pregenerated and included in this repo. Install PyClone-vi and run the following lines to recreate it.
 # pyclone-vi fit -i processed_data/wes/data_for_pyclone.tsv -o processed_data/wes/pyclone_output.h5 -c 20 -d beta-binomial -r 100 --seed 123
 # pyclone-vi write-results-file -i processed_data/wes/pyclone_output.h5 -o processed_data/wes/pyclone_output.tsv
 
-
-## plot the pyclone clustering results (boxplot of mutation raw CCFs per cluster, sample)
+## visualize the pyclone clustering results (boxplot of mutation raw CCFs per cluster, sample)
 file_pyclone_output <- here('processed_data/wes/pyclone_output.tsv')
 p <- plot_pyclone_clusters(maf_nogarbage, file_pyclone_output, title='Pyclone-vi clusters (clustering after garbage mutations are removed)')
 ggsave(here('figures_and_tables/wes/pyclone_raw_ccfs.pdf'),width=11, height=8)
 
-
-## for each cluster, show the corresponding CCF heatmap
+## for each cluster, generate a CCF heatmap. This will visually show which clusters are problematic.
 x <- fread(file_pyclone_output)
 x <- merge(x, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
 setnames(x,'cluster_id','cluster')
@@ -2418,8 +2390,14 @@ cluster_heatmap <- function(k, x) {
 lapply(1:7, cluster_heatmap, x)
 
 
-## manually edit the clusters from pyclone to split up the high-variance clusters
+#######################
+# Step 9.
+# Split up high-variance clusters and remove noisy variants
+#######################
+
 clusters <- fread(file_pyclone_output)
+
+## remove noisy/unclustered mutations
 clusters <- clusters[!mutation_id %in% c('CCDC108 M633*','NCOR2 I976Sfs*87'),] # remove cluster 2 entirely (garbage based on heatmap)
 clusters <- clusters[!mutation_id %in% c('PYHIN1 R380=','TEC X550_splice'),] # remove these mutations which don't fit into cluster 7 and are n=1 clusters
 
@@ -2435,14 +2413,14 @@ clusters$cluster_id[clusters$mutation_id %in% c('MAEL V32I','ADAMTSL4 S68R')] <-
 ## create this new cluster from cluster 7
 clusters$cluster_id[clusters$mutation_id %in% c('LTBP1 P943=','DLGAP2 R669Q','OR51S1 G96S')] <- max(clusters$cluster_id) + 1
 
+## save the results
 clusters$cluster_id <- factor(clusters$cluster_id, levels=unique(sort(clusters$cluster_id)))
 clusters$cluster_id <- as.integer(clusters$cluster_id)
 clusters$cluster_id <- clusters$cluster_id - 1
 clusters <- clusters[order(cluster_id, mutation_id, sample_id),]
 write_tsv(clusters, here('processed_data/wes/pyclone_output_reclustered.tsv'))
 
-
-## create heatmaps for each cluster again after using the new clusters
+## create heatmaps for each cluster again to visualize the cleaned up data
 x <- merge(clusters, maf[,c('Real_Sample_ID','tm','ccf_expected_copies'),with=F], by.x=c('sample_id','mutation_id'), by.y=c('Real_Sample_ID','tm'), all.x=T)
 setnames(x,'cluster_id','cluster')
 x[,cluster:=cluster+1]
@@ -2458,10 +2436,16 @@ cluster_heatmap <- function(k, x) {
 }
 trash <- lapply(1:10, cluster_heatmap, x)
 
-
 ## plot CCF distributions for the new clusters
 p <- plot_pyclone_clusters(maf, here('processed_data/wes/pyclone_output_reclustered.tsv'), title='C157 mutation clusters after manual review') 
 ggsave(here('figures_and_tables/wes/pyclone_raw_ccfs_reclustered.pdf'),width=11, height=8)
+
+
+#######################
+# Step 10.
+# Run orchard and pairtree on the cleaned up clusters
+# to generate the clone-tree
+#######################
 
 ## create data for orchard/pairtree using the new clusters
 maf_reclustered <- maf[tm %in% clusters$mutation_id,]
@@ -2471,17 +2455,23 @@ pt <- prep_data_for_pairtree(maf_reclustered, ccf_matrix_reclustered, file_from_
 write_tsv(pt$ssm,here('processed_data/wes/data_for_pairtree_reclustered.ssm'))
 cat(pt$params, file=here('processed_data/wes/data_for_pairtree_reclustered.json'))
 
-
-# run orchard
+## run orchard
+## NB: the output from this command is pregenerated and included in this repo. Install orchard and run the following line to recreate it.
 # python3 orchard/bin/orchard processed_data/wes/data_for_pairtree_reclustered.ssm processed_data/wes/data_for_pairtree_reclustered.json processed_data/wes/orchard_output.npz -p --seed 123 
 
-# run pairtree to plot tree
+## run pairtree to extract the resulting clone tree .json file
+## NB: the output from this command is pregenerated and included in this repo. Install pairtree and run the following line to recreate it.
 # pairtree/bin/plottree --runid C157 processed_data/wes/data_for_pairtree_reclustered.ssm processed_data/wes/data_for_pairtree_reclustered.json processed_data/wes/orchard_output.npz processed_data/wes/orchard_output_results.html --tree-json processed_data/wes/orchard_output_clonetree.json --omit-plots pairwise_mle,pairwise_separate
 
 
 #######################
-# plot clone tree and extract the pairtree data
+# Step 11.
+# Load the output data from orchard/pairtree and generate
+# ED Fig 2a, center
+# ED Fig 2b
 #######################
+
+fig_msg('ED Fig 2a, center')
 
 ## make a final heatmap using the set of variants retained in clusters and used in the clone tree
 res <- fread(here('processed_data/wes/pyclone_output_reclustered.tsv'))
@@ -2516,8 +2506,10 @@ colnames(mat) <- ccf_matrix$name
 cols <- data.frame(Cluster=ccf_matrix$cluster_id)
 row.names(cols) <- colnames(mat)
 heatmap_info <- pheatmap(mat, annotation_col = cols, annotation_colors = my_colors, filename=here('figures_and_tables/ed_fig_2a_center.pdf'), width=20, height=10, main='ED Fig 2a, center')
-sample_levels <- heatmap_info$tree_row$labels[heatmap_info$tree_row$order]
 
+
+fig_msg('ED Fig 2b')
+sample_levels <- heatmap_info$tree_row$labels[heatmap_info$tree_row$order]
 tmp <- rbind(mat, Normal1=0)
 dm <- dist(tmp, method='euclidean')
 tree <- nj(dm)
@@ -2540,6 +2532,13 @@ pdf(here('figures_and_tables/ed_fig_2b.pdf'))
 plot(ig, layout = layout.reingold.tilford(ig, root=1), main='ED Fig 2b')
 dev.off()
 
+
+#######################
+# Step 12.
+# Generate the clone-tree figure in ED Fig 2a, right
+#######################
+
+fig_msg('ED Fig 2a, right')
 np <- reticulate::import("numpy")
 npz2 <- np$load(here("processed_data/wes/orchard_output.npz"))
 eta <- npz2$f[['eta']]
@@ -2569,6 +2568,12 @@ p <- ggplot(data=d_eta, aes(x=sample, y=prop)) +
 ggsave(here('figures_and_tables/ed_fig_2a_right.pdf'),width=4,height=10)
 
 
+#######################
+# Step 13.
+# Create CCF tree from the heatmap mutations and annotate with piecharts
+# ED Fig 2c
+#######################
+
 ## add in sample names/groups
 group_cols <- c("#000000","#008C45","#EB5B2B","#FAB31D","#FAB31D","#4C86C6","#4C86C6","#bfbfbf")
 names(group_cols) <- c('Normal','Primary','Locoregional','Peritoneum','Lung','Liver','Distant (other)','Other')
@@ -2594,11 +2599,15 @@ pies <- lapply(pies, function(g) g+scale_fill_manual(values = cluster_cols))
 p <- p0 + geom_inset(pies, width = .1, height = .1)
 p <- p + geom_tiplab(aes(color=group), angle=0, hjust=-1.5) 
 ggsave(here('figures_and_tables/ed_fig_2c.pdf'),width=10,height=6)
+dev.off()
 
 
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# test tree similarity between WES (original CCF), Poly-G, and SCNA
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#######################
+# finally, test tree similarity between WES 
+# (original CCF), Poly-G, and SCNA
+#######################
+
+fig_msg('ED Fig 2d')
 
 ## 2024-07-24
 dm_wes <- read_distance_matrix(here('processed_data/wes/ccf_distance_matrix_allsamples.txt'))
@@ -2647,6 +2656,107 @@ p2 <- p2 + geom_tiplab(aes(color=group), angle=1, size=3.5)
 
 p <- plot_grid(p0, p1, p2, nrow=1)
 ggsave(here('figures_and_tables/ed_fig_2d.pdf'),width=9, height=6)
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Fig with angular distance simulation
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('Supplementary Note Figure 1')
+require(parallel)
+require(Rcpp)
+sourceCpp(here('R/ad_simulation.cpp'))
+
+gens_normal_to_mrca <- 1000
+gens_mrca_to_t1 <- 1000
+gens_mrca_to_t2 <- 1000
+
+do_sim <- function(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, n_markers=100, mu=5e-4, repeat_lengths=seq(10,20), cv=0.002) { 
+
+    ## simulate genotypes
+    normal <- as.numeric(sample(repeat_lengths, n_markers, replace=T))
+    mrca <- drift(normal, mu, gens_normal_to_mrca)
+    t1_pure <- drift(mrca, mu, gens_mrca_to_t1)
+    t2_pure <- drift(mrca, mu, gens_mrca_to_t2)
+
+    ## add impurities (set for p2, p3, variable for p1)
+    add_impurity <- function(p1, p2, normal, t1_pure, t2_pure) { 
+        t1 <- t1_pure*p1 + (1-p1)*normal
+        t2 <- t2_pure*p2 + (1-p2)*normal
+
+        ## add technical noise to our measurements
+        normal_noisy <- rnorm(mean=normal, sd=normal*cv, n=length(normal))
+        t1_noisy <- rnorm(mean=t1, sd=t1*cv, n=length(t1))
+        t2_noisy <- rnorm(mean=t2, sd=t2*cv, n=length(t2))
+
+        ## get angular distance matrix
+        mat <- rbind(normal_noisy, t1_noisy, t2_noisy)
+        colnames(mat) <- paste0('m',1:ncol(mat))
+        AD <- angular_distance(mat)
+        rownames(AD) <- c('N','t1','t2')
+        colnames(AD) <- c('N','t1','t2')
+        AD['t1','t2'] # distance from t1 to t2
+    }
+
+    optimal <- add_impurity(p1=1, p2=1, normal, t1_pure, t2_pure)
+    p1_vals <- seq(0.01,0.99,by=0.001)
+    p2_vals <- c(0.1,0.2,0.5,0.8,0.9)
+    run_p2 <- function(p2, p1_vals) { 
+        ad <- sapply(p1_vals, add_impurity, p2=p2, normal, t1_pure, t2_pure)
+        res <- data.table(p1=p1_vals, ad=ad)
+        res$p2 <- p2
+        res
+    }
+    l <- lapply(p2_vals, run_p2, p1_vals)
+    res <- rbindlist(l)
+    res$optimal <- optimal
+    res
+}
+
+## get AD between T1 and T2
+run_sims <- function(i, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2) {
+    if(i %% 10 == 0) message(i,'/200 simulations finished.')
+    sim <- do_sim(gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2)
+    sim$sim <- i
+    sim
+}
+
+RNGkind("L'Ecuyer-CMRG")
+set.seed(42)
+l <- mclapply(1:200, run_sims, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, mc.cores=4)
+res <- rbindlist(l)
+res[,id:=paste0(sim,':',p2)]
+res[,pctdiff:=100*(ad - optimal)/optimal]
+
+optimal <- res[!duplicated(id),]
+get_distribution <- function(res) {
+    qs <- quantile(res$pctdiff,c(0.025,0.5,0.975))
+    list(mid=qs[2], lwr=qs[1], upr=qs[3])
+}
+res2 <- res[,get_distribution(.SD),by=c('p1','p2')]
+res2[,p1:=100*p1]
+res2[,p2:=100*p2]
+res2[,p2:=paste0(p2,'%')]
+res2$p2 <- factor(res2$p2, levels=unique(res2$p2))
+cols <- c('#A50F15','#EF3B2C','black','#3399CC','#08519C')
+names(cols) <- levels(res2$p2)
+
+p <- ggplot(res2, aes(x=p1)) +
+    scale_x_continuous(breaks=seq(0,100,by=20)) + 
+    geom_ribbon(aes(ymin=lwr, ymax=upr, fill=p2), alpha=0.4) +
+    geom_line(aes(y=mid, color=p2)) + 
+    geom_hline(yintercept=0, linewidth=0.25,linetype='dashed') +
+    scale_color_manual(values=cols, name='Sample 2 purity (%)') +
+    scale_fill_manual(values=cols, name='Sample 2 purity (%)') +
+    facet_wrap(facets=~p2,nrow=1) + 
+    theme_bw(base_size=12) +
+    theme(legend.position='bottom') +
+    labs(x='Sample 1 purity (%)', y='Angular distance (% diff from optimal)',title='Supplementary Note Fig1')
+ggsave(here('figures_and_tables/supp_note_fig1.pdf'),width=10,height=3.5)
+
+
 
 
 
