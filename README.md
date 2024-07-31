@@ -16,7 +16,7 @@ git clone git@github.com:agorelick/peritoneal_metastasis.git
 
 If you already have Conda installed, proceed to the next step (1.2). Otherwise, install a version of Conda. I prefer **miniforge**, which is a minimal version of Mamba, a C++ re-implementation of Conda for improved speed. Instructions for download here: https://github.com/conda-forge/miniforge#mambaforge.
 
-**Note**: This has so far only been tested on macOS (v11.5.2), but it should work with little/no modification on any UNIX-based operating system.
+**Note**: This has so far only been tested on macOS (Big Sur and Sonoma), but it should work with little/no modification on any UNIX-based operating system.
 
 ### 1.2 Install the `peritoneal_metastasis` Conda environment from the .yml file.
 
@@ -26,6 +26,11 @@ Change directory to the cloned peritoneal_metastasis repo, then install the cond
 cd peritoneal_metastasis
 conda env create -n "peritoneal_metastasis" -f environment.yml
 ```
+**Tips:** I ran into trouble creating this conda environment on a mac which already had R installed globally. Most of the conda packages installed, but then in R I was unable to install new packages such as the Quartet package (which is not on Conda) due to dyld files not being found. What worked for me was the following steps:
+- temporarily give ~/.R/Makevars and ~/.Rprofile new names
+- completely remove the `peritoneal_metastasis` conda environment
+- remove the files/directories for r-base-4.3.3: `rm -r ~/miniforge3/pkgs/r-base-4.3.3-*`
+- then rerun `conda env create -n "peritoneal_metastasis" -f environment.yml`
 
 Once the installation is complete, activate the peritoneal_metastasis environment.
 
