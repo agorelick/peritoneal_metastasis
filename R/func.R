@@ -936,10 +936,11 @@ test_tree_similarity <- function(test_mat,ref_mat,nperm,title=NULL) {
     l <- lapply(0:nperm, permute_test_and_get_shared_info, test_mat, ref_mat)
     res <- rbindlist(l)
     res$similarity <- res$s / res$Q
+
     obs <- res[perm==0,]
     exp <- res[perm > 0,]
     numerator <- sum(exp$similarity >= obs$similarity) + 1
-    denominator <- nrow(exp) + 1    
+    denominator <- nrow(exp) + 1
     pval <- numerator / denominator
     pval <- prettyNum(pval,digits=2)
     median_exp <- prettyNum(median(exp$similarity),digits=2)
@@ -949,10 +950,11 @@ test_tree_similarity <- function(test_mat,ref_mat,nperm,title=NULL) {
         geom_histogram(bins=50,fill='#a6a6a6',linewidth=1,color='white') +
         theme_ang(base_size=12) +
         geom_segment(x=obs$similarity,xend=obs$similarity,y=0,yend=Inf,color='red')
-    p <- p + labs(x='Tree similarity',y='N permutations',subtitle=label)   
+    p <- p + labs(x='Tree similarity',y='N permutations',subtitle=label)
     p <- p + scale_x_continuous(limits=c(0,1),breaks=seq(0,1,by=0.25),expand=c(0,0))
     list(data=res, plot=p)
 }
+
 
 
 ## performs distance matrix similarity test and plots the matrices side-by-side including summary of test results

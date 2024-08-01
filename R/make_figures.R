@@ -5,21 +5,6 @@ source(here::here('R/func.R'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# make annotated poly-G trees for each patient
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-## Note: C38's tree includes 3 samples (Sat1/2, VI1) which are not used in any analyses due to being non-standard tissue types.
-## I included have included in the tree generated here for completeness (see: R/func.R:make_tree) 
-## but they are removed from the following files:
-## - processed_data/angular_distance_matrices/C38.txt
-## - processed_data/angular_distance_matrices_bootstrapped/C38.rds
-
-valid_patients <- unique(sample_info[cohort %in% c('science','natgen','peritoneal') & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
-valid_patients <- sort(c(valid_patients,'E3'))
-trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures_and_tables/polyg_trees'), show.bsvals=T, min.bsval.shown=0)
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # get the number of poly-G PCRs and markers/patient
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -391,128 +376,6 @@ tree <- ape::rotate(tree, 9)
 p <- ggtree(tree, layout='ape')
 p <- p + geom_tiplab(angle=0) + ggtitle('Fig 1b, right')
 ggsave(here('figures_and_tables/fig1b_right.pdf'))
-
-
-
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SI Table 1 (Patient clinical data table)
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-fig_msg('SI Table 1')
-
-patient_info <- fread(here('original_data/misc/patient_info.txt'))
-patient_info[PATIENT_ID=='Ea3',Nstage:='+']
-patient_info[,c('Tstage','Nstage','Mstage'):=NULL]
-
-f=function(id) {
-    s <- strsplit(id,'')[[1]]
-    s <- as.integer(s)
-    s <- s[!is.na(s)]
-    out <- as.integer(paste(s,collapse=''))
-    list(id=id, num=out)
-}
-l <- lapply(unique(patient_info$PATIENT_ID), f)
-info <- rbindlist(l)
-info[grep('C',id),group:='C']
-info[grep('E',id),group:='E']
-info <- info[order(group,num),]
-patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
-
-## add number of samples(lesions) of each tissue type per patient
-sample_info <- fread(here('processed_data/sample_info.txt'))
-sample_info <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
-tabulate <- function(info) {
-    lesions <- sum(info$in_collapsed==T)
-    samples <- nrow(info)
-    list(lesions=lesions, samples=samples)
-}
-tbl <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','tissue_type')]
-tbl$tissue_type <- factor(tbl$tissue_type, levels=(c('Normal','Primary','Lymph node','Tumor deposit','Peritoneum','Lung','Liver','Ovary (hematogenous)','Lymph node (distant)')))
-tbl$label <- as.character(NA)
-tbl[samples==lesions, label:=samples]
-tbl[samples > lesions,label:=paste0(samples,' (',lesions,')')]
-tbl <- data.table::dcast(Patient_ID ~ tissue_type, value.var='label', data=tbl)
-tbl[is.na(tbl)] <- 0
-patient_info <- merge(patient_info, tbl, by.x='PATIENT_ID', by.y='Patient_ID', all.x=T)
-
-## add numbers of synchronous/metachronous samples(lesions) per group per patient
-sample_info[met_timing %in% c('metachronous','metachronous after synchronous'), met_timing:='metachronous']
-sample_info[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
-tbl_timing <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','met_timing')]
-tbl_timing$label <- as.character(NA)
-tbl_timing[samples==lesions, label:=samples]
-tbl_timing[samples > lesions,label:=paste0(samples,' (',lesions,')')]
-tbl_sync <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='synchronous'])
-names(tbl_sync) <- paste0('Sync. ',names(tbl_sync))
-names(tbl_sync)[1] <- 'PATIENT_ID'
-tbl_meta <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='metachronous'])
-names(tbl_meta) <- paste0('Meta. ',names(tbl_meta))
-names(tbl_meta)[1] <- 'PATIENT_ID'
-tbl_timing <- merge(patient_info[,c('PATIENT_ID'),with=F], tbl_sync, by='PATIENT_ID', all.x=T)
-tbl_timing <- merge(tbl_timing, tbl_meta, by='PATIENT_ID', all.x=T)
-tbl_timing[is.na(tbl_timing)] <- 0
-patient_info <- merge(patient_info, tbl_timing, by='PATIENT_ID', all.x=T)
-
-## add numbers of deep/luminal PT region samples per patient
-tbl_depth <- sample_info[group=='Primary',tabulate(.SD),by=c('Patient_ID','vertical')]
-tbl_depth <- data.table::dcast(Patient_ID ~ vertical, value.var='samples', data=tbl_depth)
-tbl_depth[is.na(tbl_depth)] <- 0
-names(tbl_depth) <- c('PATIENT_ID','Deep PT','Luminal/mucosal PT')
-patient_info <- merge(patient_info, tbl_depth, by='PATIENT_ID', all.x=T)
-
-## order the patients numerically
-patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
-patient_info <- patient_info[order(PATIENT_ID),]
-write_tsv(patient_info,here('figures_and_tables/supp_table1.txt'))
-
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SI Table 4 Timing, treatment
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-fig_msg('SI Table 4')
-
-sample_info <- fread(here('processed_data/sample_info.txt'))
-sample_info <- sample_info[Patient_ID %in% patient_info$PATIENT_ID]
-sample_info[met_timing %in% 'metachronous after synchronous', met_timing:='metachronous']
-si <- sample_info[,c('Patient_ID','group','Real_Sample_ID','met_timing','met_treated_type','in_collapsed'),with=F]
-si[met_treated_type=='',met_treated_type:='untreated']
-si[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
-tbl <- si[,tabulate(.SD),by=c('Patient_ID','group','met_treated_type','met_timing')]
-tbl <- tbl[group %in% c('Locoregional','Peritoneum','Distant (any)'),]
-count_patients <- function(tbl) {
-    pts_with_geq3_lesions <- length(unique(tbl$Patient_ID[tbl$lesions >= 3]))
-    total_lesions <- sum(tbl$lesions)
-    list(pts_with_geq3_lesions=pts_with_geq3_lesions, total_lesions=total_lesions)
-}
-
-## number of patients with 3+ lesions of the given criteria
-tbl_groups_pts <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
-tbl_groups_pts <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='pts_with_geq3_lesions', data=tbl_groups_pts)
-tbl_groups_pts <- tbl_groups_pts[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
-tbl_groups_pts[is.na(tbl_groups_pts)] <- 0
-tbl_groups_lesions <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
-tbl_groups_lesions <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='total_lesions', data=tbl_groups_lesions)
-tbl_groups_lesions <- tbl_groups_lesions[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
-tbl_groups_lesions[is.na(tbl_groups_lesions)] <- 0
-names(tbl_groups_pts)[3:5] <- paste0(names(tbl_groups_pts)[3:5],'_geq3')
-names(tbl_groups_lesions)[3:5] <- paste0(names(tbl_groups_lesions)[3:5],'_lesions')
-
-tbl_overall <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing')]
-names(tbl_overall)[3:4] <- c('pts_geq3','lesions_total')
-out <- merge(tbl_overall, tbl_groups_pts, by=c('met_timing','met_treated_type'), all.x=T)
-out <- merge(out, tbl_groups_lesions, by=c('met_timing','met_treated_type'), all.x=T)
-out[met_treated_type=='systemic chemo',met_treated_type:='Systemic chemo']
-out[met_treated_type=='hipec',met_treated_type:='HIPEC only']
-out[met_treated_type=='untreated',met_treated_type:='Untreated']
-out$met_timing <- factor(out$met_timing, levels=c('synchronous','metachronous'))
-out$met_treated_type <- factor(out$met_treated_type, levels=c('Untreated','Systemic chemo','HIPEC only'))
-out <- out[order(met_timing, met_treated_type),]
-out <- out[,c('met_timing','met_treated_type','Locoregional_geq3','Peritoneum_geq3','Distant (any)_geq3','pts_geq3','Locoregional_lesions','Peritoneum_lesions','Distant (any)_lesions','lesions_total'),with=F]
-write_tsv(out,here('figures_and_tables/supp_table4.txt'))
-
 
 
 
@@ -2026,7 +1889,7 @@ ggsave(here('figures_and_tables/ed_fig_5bc.pdf'),width=6, height=8)
 # Note: this workflow has many steps, some of which require using separate software which can
 # not be added to this Conda package due to dependency conflicts. These steps are 
 # described in comments below. The output files from these steps have been pre-generated and
-# included in this package. However, this pre-generated output can be replicated
+# included in this package. However, this pre-generated output can be regenerated
 # by installing the specified software locally and running the commented-out lines.
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -2659,9 +2522,145 @@ ggsave(here('figures_and_tables/ed_fig_2d.pdf'),width=9, height=6)
 
 
 
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Table 1 (Patient clinical data table)
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('SI Table 1')
+
+patient_info <- fread(here('original_data/misc/patient_info.txt'))
+patient_info[PATIENT_ID=='Ea3',Nstage:='+']
+patient_info[,c('Tstage','Nstage','Mstage'):=NULL]
+
+f=function(id) {
+    s <- strsplit(id,'')[[1]]
+    s <- as.integer(s)
+    s <- s[!is.na(s)]
+    out <- as.integer(paste(s,collapse=''))
+    list(id=id, num=out)
+}
+l <- lapply(unique(patient_info$PATIENT_ID), f)
+info <- rbindlist(l)
+info[grep('C',id),group:='C']
+info[grep('E',id),group:='E']
+info <- info[order(group,num),]
+patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
+
+## add number of samples(lesions) of each tissue type per patient
+sample_info <- fread(here('processed_data/sample_info.txt'))
+sample_info <- sample_info[cohort=='peritoneal' | Patient_ID %in% c('C38','C89'),] 
+tabulate <- function(info) {
+    lesions <- sum(info$in_collapsed==T)
+    samples <- nrow(info)
+    list(lesions=lesions, samples=samples)
+}
+tbl <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','tissue_type')]
+tbl$tissue_type <- factor(tbl$tissue_type, levels=(c('Normal','Primary','Lymph node','Tumor deposit','Peritoneum','Lung','Liver','Ovary (hematogenous)','Lymph node (distant)')))
+tbl$label <- as.character(NA)
+tbl[samples==lesions, label:=samples]
+tbl[samples > lesions,label:=paste0(samples,' (',lesions,')')]
+tbl <- data.table::dcast(Patient_ID ~ tissue_type, value.var='label', data=tbl)
+tbl[is.na(tbl)] <- 0
+patient_info <- merge(patient_info, tbl, by.x='PATIENT_ID', by.y='Patient_ID', all.x=T)
+
+## add numbers of synchronous/metachronous samples(lesions) per group per patient
+sample_info[met_timing %in% c('metachronous','metachronous after synchronous'), met_timing:='metachronous']
+sample_info[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
+tbl_timing <- sample_info[,tabulate(.SD),by=c('Patient_ID','group','met_timing')]
+tbl_timing$label <- as.character(NA)
+tbl_timing[samples==lesions, label:=samples]
+tbl_timing[samples > lesions,label:=paste0(samples,' (',lesions,')')]
+tbl_sync <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='synchronous'])
+names(tbl_sync) <- paste0('Sync. ',names(tbl_sync))
+names(tbl_sync)[1] <- 'PATIENT_ID'
+tbl_meta <- data.table::dcast(Patient_ID ~ group, value.var='label', data=tbl_timing[met_timing=='metachronous'])
+names(tbl_meta) <- paste0('Meta. ',names(tbl_meta))
+names(tbl_meta)[1] <- 'PATIENT_ID'
+tbl_timing <- merge(patient_info[,c('PATIENT_ID'),with=F], tbl_sync, by='PATIENT_ID', all.x=T)
+tbl_timing <- merge(tbl_timing, tbl_meta, by='PATIENT_ID', all.x=T)
+tbl_timing[is.na(tbl_timing)] <- 0
+patient_info <- merge(patient_info, tbl_timing, by='PATIENT_ID', all.x=T)
+
+## add numbers of deep/luminal PT region samples per patient
+tbl_depth <- sample_info[group=='Primary',tabulate(.SD),by=c('Patient_ID','vertical')]
+tbl_depth <- data.table::dcast(Patient_ID ~ vertical, value.var='samples', data=tbl_depth)
+tbl_depth[is.na(tbl_depth)] <- 0
+names(tbl_depth) <- c('PATIENT_ID','Deep PT','Luminal/mucosal PT')
+patient_info <- merge(patient_info, tbl_depth, by='PATIENT_ID', all.x=T)
+
+## order the patients numerically
+patient_info$PATIENT_ID <- factor(patient_info$PATIENT_ID, levels=info$id)
+patient_info <- patient_info[order(PATIENT_ID),]
+write_tsv(patient_info,here('figures_and_tables/supp_table1.txt'))
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# SI Table 4 Timing, treatment
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('SI Table 4')
+
+sample_info <- fread(here('processed_data/sample_info.txt'))
+sample_info <- sample_info[Patient_ID %in% patient_info$PATIENT_ID]
+sample_info[met_timing %in% 'metachronous after synchronous', met_timing:='metachronous']
+si <- sample_info[,c('Patient_ID','group','Real_Sample_ID','met_timing','met_treated_type','in_collapsed'),with=F]
+si[met_treated_type=='',met_treated_type:='untreated']
+si[group %in% c('Lung','Liver','Distant (other)'), group:='Distant (any)']
+tbl <- si[,tabulate(.SD),by=c('Patient_ID','group','met_treated_type','met_timing')]
+tbl <- tbl[group %in% c('Locoregional','Peritoneum','Distant (any)'),]
+count_patients <- function(tbl) {
+    pts_with_geq3_lesions <- length(unique(tbl$Patient_ID[tbl$lesions >= 3]))
+    total_lesions <- sum(tbl$lesions)
+    list(pts_with_geq3_lesions=pts_with_geq3_lesions, total_lesions=total_lesions)
+}
+
+## number of patients with 3+ lesions of the given criteria
+tbl_groups_pts <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
+tbl_groups_pts <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='pts_with_geq3_lesions', data=tbl_groups_pts)
+tbl_groups_pts <- tbl_groups_pts[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
+tbl_groups_pts[is.na(tbl_groups_pts)] <- 0
+tbl_groups_lesions <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing','group')]
+tbl_groups_lesions <- data.table::dcast(met_timing + met_treated_type ~ group, value.var='total_lesions', data=tbl_groups_lesions)
+tbl_groups_lesions <- tbl_groups_lesions[,c('met_timing','met_treated_type','Locoregional','Peritoneum','Distant (any)'),with=F]
+tbl_groups_lesions[is.na(tbl_groups_lesions)] <- 0
+names(tbl_groups_pts)[3:5] <- paste0(names(tbl_groups_pts)[3:5],'_geq3')
+names(tbl_groups_lesions)[3:5] <- paste0(names(tbl_groups_lesions)[3:5],'_lesions')
+
+tbl_overall <- tbl[,count_patients(.SD), by=c('met_treated_type','met_timing')]
+names(tbl_overall)[3:4] <- c('pts_geq3','lesions_total')
+out <- merge(tbl_overall, tbl_groups_pts, by=c('met_timing','met_treated_type'), all.x=T)
+out <- merge(out, tbl_groups_lesions, by=c('met_timing','met_treated_type'), all.x=T)
+out[met_treated_type=='systemic chemo',met_treated_type:='Systemic chemo']
+out[met_treated_type=='hipec',met_treated_type:='HIPEC only']
+out[met_treated_type=='untreated',met_treated_type:='Untreated']
+out$met_timing <- factor(out$met_timing, levels=c('synchronous','metachronous'))
+out$met_treated_type <- factor(out$met_treated_type, levels=c('Untreated','Systemic chemo','HIPEC only'))
+out <- out[order(met_timing, met_treated_type),]
+out <- out[,c('met_timing','met_treated_type','Locoregional_geq3','Peritoneum_geq3','Distant (any)_geq3','pts_geq3','Locoregional_lesions','Peritoneum_lesions','Distant (any)_lesions','lesions_total'),with=F]
+write_tsv(out,here('figures_and_tables/supp_table4.txt'))
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# make annotated poly-G trees for each patient
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+fig_msg('SI Figs 7-32 (poly-G trees)')
+
+## Note: C38's tree includes 3 samples (Sat1/2, VI1) which are not used in any analyses due to being non-standard tissue types.
+## I included have included in the tree generated here for completeness (see: R/func.R:make_tree) 
+## but they are removed from the following files:
+## - processed_data/angular_distance_matrices/C38.txt
+## - processed_data/angular_distance_matrices_bootstrapped/C38.rds
+
+valid_patients <- unique(sample_info[cohort %in% c('science','natgen','peritoneal') & grepl('E[a-c]3',Patient_ID)==F & grepl('CRC',Patient_ID)==F,(Patient_ID)])
+valid_patients <- sort(c(valid_patients,'E3'))
+trash <- lapply(valid_patients, make_tree, sample_info=sample_info, collapsed=F, show.depth=T, show.timing=T, outdir=here('figures_and_tables/polyg_trees'), show.bsvals=T, min.bsval.shown=0)
+
+
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# SI Fig with angular distance simulation
+# Supplementary note figure with angular distance simulation
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 fig_msg('Supplementary Note Figure 1')
