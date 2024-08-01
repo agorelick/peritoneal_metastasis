@@ -27,7 +27,7 @@ cd peritoneal_metastasis
 conda env create -n "peritoneal_metastasis" -f environment.yml
 ```
 **Tips:** I ran into trouble creating this conda environment on a mac which already had R installed globally. Most of the conda packages installed, but then in R I was unable to install new packages such as the Quartet package (which is not on Conda) due to dyld files not being found. What worked for me was the following steps:
-- temporarily give ~/.R/Makevars and ~/.Rprofile new names
+- temporarily give ~/.R/Makevars and ~/.Rprofile new names (you may not have these files)
 - completely remove the `peritoneal_metastasis` conda environment
 - remove the files/directories for r-base-4.3.3: `rm -r ~/miniforge3/pkgs/r-base-4.3.3-*`
 - then rerun `conda env create -n "peritoneal_metastasis" -f environment.yml`
@@ -79,7 +79,7 @@ Rscript R/run_polyG_pipeline.R
 
 All newly software installed can be removed by removiing the peritoneal_metastasis conda environment. First, detach the conda environment if you have not already:
 ```
-conda deactivate peritoneal_metastasis
+conda deactivate
 ```
 
 Next, remove the environment:
