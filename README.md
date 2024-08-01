@@ -62,6 +62,10 @@ The `R/make_figures.R` script uses preprocessed copy number data which are alrea
 ```
 Rscript R/process_scna_data.R
 ```
+The components of SI Figs 1-6 will be generated into the following locations (similarly for the other 5 lpWGS patients):
+* Panel A: `figures_and_tables/copynumber/heatmaps/C146_cnv_segment_heatmap.pdf`
+* Panel B: `figures_and_tables/copynumber/distance_matrix_comparisons/C146_cnv_bins_euclidean_matrix_comparison.pdf`
+* Panel C: `figures_and_tables/copynumber/tree_comparisons/C146_cnv_bins_euclidean_nj_tree_comparison.pdf`
 
 ### 2.2 (Optional) Process raw polyG data to generate angular distance matrices and heatmaps (SI Figs 7-32, panel d)
 
