@@ -39,7 +39,7 @@ conda activate peritoneal_metastasis
 
 ### 1.3 Install additional dependencies
 
-With the peritoneal_metastasis environment activated, run the install some additional dependencies into R. 
+With the peritoneal_metastasis environment activated, run the following to install some additional dependencies into R. 
 ```
 Rscript R/get_prerequisites.R
 ```
