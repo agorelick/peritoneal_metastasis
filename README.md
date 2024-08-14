@@ -50,7 +50,7 @@ This GitHub repo contains pregenerated angular distance data (distance matrices 
 
 ### 2.1 Try out the polyG R package 
 
-The _polyG_ R package will be automatically installed during **Section 1.4**. With the `peritoneal_metastasis` Conda environment attached, open R from the top directory of this GitHub repository. Then load the _polyG_ library and run the poly-G processing pipeline on the small example dataset (patients C12, C31 and C36 from Naxerova, _Science_ 2017) using the code chunk below. **Please note:** The _polyG_ package is available as a stand-alone repository and can be installed independently of the instructions shown here. Please see https://github.com/agorelick/polyG for more detailed information.
+The _polyG_ R package will be automatically installed during **Section 1.4**. With the `peritoneal_metastasis` Conda environment attached, open R from the top directory of this GitHub repository. Then load the _polyG_ library and run the poly-G processing pipeline on the small example dataset (patients C12, C31 and C36 from Naxerova, _Science_ 2017) using the code chunk below. This only takes a few minutes to run on a 2020 MacBook Pro. **Please note:** The _polyG_ package is available as a stand-alone repository and can be installed independently of the instructions shown here. Please see https://github.com/agorelick/polyG for more detailed information. 
 
 ```r
 # load the polyG package
@@ -60,22 +60,22 @@ library(polyG)
 polyG(input_dir='original_data/polyG/example_input', results_dir='processed_data/polyG/example_output', seed=42)
 ```
 
-This should only take a few minutes to run, and will populate output data into the directory `processed_data/polyG/example_output/results/sample_exclusion_0.3_rep_cut_0.11/`. This directory will contain numerous intermediate files for each patient. The key angular distance output data will be in the following subdirectories:
+The above command will populate output data into the directory `processed_data/polyG/example_output/results/sample_exclusion_0.3_rep_cut_0.11/`. This directory will contain numerous intermediate files for each patient. The key output files are the angular distance data, which will be generated in the following subdirectories:
 
 - `results_angular_distance_representativeReplicates/angular_dist_trees_w_root_usedmarkers` - This directory contains PDF files of angular distance phylogenies for each patient (multiple versions will be generated for each patient).
 - `results_angular_distance_representativeReplicates/angular_dist_matrix_w_root_usedmarkers` - This directory contains angular distance matrices as .txt files for each patient. It also includes .rds R objects containing 1,000 bootstrap replicates of the angular distance matrices.
-- `results_angular_distance_representativeReplicates/angular_dist_heatmap_usedmarkers` - This directory contains heatmaps of normalized polyguanine genotypes as in **SI Figs 7-32, panel d**. 
+- `results_angular_distance_representativeReplicates/angular_dist_heatmap_usedmarkers` - This directory contains PDFs of normalized polyguanine genotype heatmaps, as in **SI Figs 7-32, panel d**. 
 
 
 ### 2.2 Generate angular distance data for all patients
 
-Raw poly-G marker files for all patients in this study are included in this `peritoneal_metastasis` GitHub repo under `original_data/polyG`, split up by patient cohort. Our pipeline to process these raw poly-G data and regenerate the angular distance data for each patient can be executed with the following commands. This may take around 30 minutes to complete. 
+Raw poly-G marker files for all patients in this study are included in this GitHub repo under `original_data/polyG`, split up by patient cohort. Our pipeline to process these raw poly-G data and regenerate the angular distance data for each patient can be executed with the following command. This may take 30 minutes to an hour to complete. 
 
 ```
 Rscript R/run_polyG_pipeline.R
 ```
 
-Note: the above code will generate the same key output files as described in **Section 2.1** for each patient. These will be populated in the `processed_data/polyG directory`, organized by patient cohort (e.g. "peritoneal") and polyG processing workflow parameters. For example, the output data for patient C146 will be populated into `processed_data/polyG/peritoneal/results/sample_exclusion_0.1_rep_cut_0.11/results_angular_distance_representativeReplicates/`. This will also generate the normalized polyguanine genotype heatmaps shown in **SI Figs 7-32, panel d**.
+Note: the above code will generate the same key output files as described in **Section 2.1** for each patient. These will be populated in the `processed_data/polyG` directory, organized by patient cohort (e.g. "peritoneal") and polyG processing workflow parameters. For example, the output data for patient C146 will be populated into `processed_data/polyG/peritoneal/results/sample_exclusion_0.1_rep_cut_0.11/results_angular_distance_representativeReplicates/`. (This will also generate the normalized polyguanine genotype heatmaps shown in **SI Figs 7-32, panel d**.)
 
 
 
