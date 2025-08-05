@@ -531,6 +531,73 @@ ggsave(here('figures_and_tables/fig_2e.pdf'))
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# DEV Fig 2E. QDS compared between tissue types
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+source(here('R/func.R')) # run this again to re-load the sample_info data
+fig_msg('Fig 2e')
+
+## define applicable patients (peritoneum, with per cohort + C38, C89; and all liver-met patients)
+per_patients <- unique(sample_info$Patient_ID[sample_info$group=='Peritoneum'])
+liv_patients <- unique(sample_info$Patient_ID[sample_info$group=='Liver'])
+
+## subset the sample_info for N, PT, and Per; get met-spec node distance from peritoneum to normal
+si1 <- sample_info[Patient_ID %in% per_patients & group %in% c('Normal','Primary','Peritoneum') & in_collapsed==T] 
+res1 <- get_met_specific_distances(si1, ad_table, comparison='qds', distance='node', return_tree=F)
+res1 <- res1[type=='Met',]
+res1$group <- 'Peritoneum'
+res1$tissue_type <- 'Peritoneum'
+
+si2.1 <- sample_info[Patient_ID %in% per_patients & (group %in% c('Normal','Primary') | tissue_type=='Lymph node') & in_collapsed==T]
+res2.1 <- get_met_specific_distances(si2.1, ad_table, comparison='qds', distance='node', return_tree=F)
+res2.1 <- res2.1[type=='Met',]
+res2.1$group <- 'Locoregional'
+res2.1$tissue_type <- 'Lymph node'
+si2.2 <- sample_info[Patient_ID %in% per_patients & (group %in% c('Normal','Primary') | tissue_type=='Tumor deposit') & in_collapsed==T]
+res2.2 <- get_met_specific_distances(si2.2, ad_table, comparison='qds', distance='node', return_tree=F)
+res2.2 <- res2.2[type=='Met',]
+res2.2$group <- 'Locoregional'
+res2.2$tissue_type <- 'Tumor deposit'
+res2 <- rbind(res2.1, res2.2)
+
+si3 <- sample_info[Patient_ID %in% liv_patients & group %in% c('Normal','Primary','Liver') & in_collapsed==T]
+res3 <- get_met_specific_distances(si3, ad_table, comparison='qds', distance='node', return_tree=F)
+res3 <- res3[type=='Met',]
+res3$group <- 'Liver'
+res3$tissue_type <- 'Liver'
+
+## supplement the liver data with qds from kim et al wxs-based trees
+si4 <- sample_info[grepl('^CRC',Patient_ID) & group %in% c('Normal','Primary','Liver') & in_collapsed==T]
+res4 <- get_met_specific_distances(si4, kim_node_distances, comparison='qds', distance='node', return_tree=F)
+res4 <- res4[type=='Met',]
+res4$group <- 'Liver'
+res4$tissue_type <- 'Liver'
+
+res <- rbind(res1, res2, res3, res4)
+res$group <- factor(res$group, levels=c('Locoregional','Peritoneum','Liver'))
+tst <- dunn_test_ES(res, QDS ~ group)
+
+tmp_cols <- c(group_cols,'#bc4822','#ef7b55')
+names(tmp_cols)[8:9] <- c('Lymph node','Tumor deposit')
+tmp_cols <- tmp_cols[names(tmp_cols) %in% res$tissue_type]
+tmp_cols <- tmp_cols[c('Lymph node','Tumor deposit','Peritoneum','Liver')]
+
+p <- ggplot(res, aes(x=group, y=QDS)) + 
+    scale_y_continuous(breaks=seq(0,1,by=0.25)) +
+    geom_beeswarm(cex = 3, aes(fill=tissue_type), size=4, pch=21, stroke=0.5) +
+    geom_boxplot(fill=NA,color='black',outlier.shape=NA) + 
+    stat_compare_means(method = "kruskal.test", label.y = 1.25, geom = "label") + 
+    stat_pvalue_manual(tst, label='label', y.position=c(1.1,1.2,1.3)) +
+    scale_fill_manual(values=tmp_cols,name='Tissue type') + 
+    theme_ang(base_size=12) +
+    labs(x=NULL,y='QDS',title='Fig 2e (QDS version)')
+ggsave(here('figures_and_tables/dev_fig_2e.pdf'))
+
+
+
+
+
+# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # Fig 2F. pairwise AD compared between tissue types
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

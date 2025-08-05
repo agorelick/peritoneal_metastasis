@@ -222,10 +222,83 @@ extract_gglegend <- function (p) {
     list(plot = plot, legend = legend)
 }
 
+
+qds.2 <- function(phylo, ref_samples, test_samples) {
+  # The QDS.2 is a fusion of the QDS and TDS, using the best parts of each.
+  # The QDS.2 is defined as the fraction of MMPP quartets, rooted with respect to the normal,
+  # for which the the MM have their own clade. To phrase the definition in more long winded words:
+  # For each MMPP quartet among a patient's samples, construct a rooted phylogenetic tree with
+  # these four samples plus the normal, and then look at the MRCA of the two M samples - if this
+  # MRCA is ancestral to a P sample then the quartet evidences inter-metastatic diversity,
+  # whereas if the MRCA is not ancestral to a P sample (i.e. it defines a clade with only the two M samples)
+  # then the quartet evidences specialisation - the fraction of quartets that evidence inter-metastatic diversity is the QDS.2.
+
+  # This QDS.2 has the advantage over the QDS that it is aware of ancestral direction,
+  # and it has the advantage over the TDS that it interprets inter-metastatic diversity
+  # with respect to intra-primary diversity.
+
+  # Libraries
+  # ~~~~~~~~~
+  require(stringr)
+  require(ape)
+
+  tiplabels <- phylo$tip.label
+  mat_interest <- tiplabels[tiplabels %in% test_samples]
+  mat_norm <- tiplabels[tiplabels %in% ref_samples]
+
+  print('Computing QDS.2 for:')
+  print(mat_interest)
+  print('constrasting against...:')
+  print(mat_norm)
+  print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+  
+  # extracting all possible quartets
+  quartets <- combn(c(mat_interest, mat_norm), 4)
+
+  # extracting all MMPP combinations
+  mmpp_cols <- c()
+
+  # for loop checks which columns in quartets is MMPP
+  for (col in 1:ncol(quartets)) {
+    if (sum(quartets[,col] %in% test_samples) == 2) { 
+      mmpp_cols <- c(mmpp_cols, col)}
+  }
+
+  quartets_mmpp <- as.matrix(quartets[,mmpp_cols])
+
+  tot_combinations <- 0
+  same_mrca_combinations <- 0
+  # make a for loop. For each iteration, the loop will
+    # a. make tree out of each mmpp quartets, N rooted
+    # b. calculates the proportion of mm that share a MRCA with a P
+
+  for (col1 in 1:ncol(quartets_mmpp)) {
+
+    current_quartet <- quartets_mmpp[,col1]
+    mets <- current_quartet[current_quartet %in% test_samples]
+    prims <- current_quartet[current_quartet %in% ref_samples]
+
+    mets_mrca <- getMRCA(phylo, tip = mets)
+    prim1_mets_mrca <- getMRCA(phylo, tip = c(mets,prims[1]))
+    prim2_mets_mrca <- getMRCA(phylo, tip = c(mets,prims[2]))
+
+    # checking if mets have MRCA with one of the primaries
+    tot_combinations <- tot_combinations + 1
+
+    if (mets_mrca == prim1_mets_mrca | mets_mrca == prim2_mets_mrca) {
+      same_mrca_combinations <- same_mrca_combinations + 1
+    }
+  }
+
+  prop_shared_mrca <- same_mrca_combinations / tot_combinations
+  return(prop_shared_mrca)
+}
+
+
 get_met_specific_distances <- function(si, ad_table, comparison, distance, return_tree, met_color='blue') { 
-    if(!comparison %in% c('normal','primary','pairwise','rds','all')) 
+    if(!comparison %in% c('normal','primary','pairwise','rds','qds','all')) 
         stop("comparison should be one of 'normal', 'primary', 'pairwise', 'rds', or 'all'")
-    if(!distance %in% c('node','angular','rds','scna','patristic')) 
+    if(!distance %in% c('node','angular','rds','qds','scna','patristic')) 
         stop("distance should be one of 'node', 'angular', 'rds', 'scna', 'patristic'")
     if(comparison=='normal' & distance %in% c('patristic','angular')) 
         stop("angular distance/patritic node distabce should not be used for distance to normal")
@@ -257,7 +330,18 @@ get_met_specific_distances <- function(si, ad_table, comparison, distance, retur
         if(nrow(klm_dat)==0) klm_dat <- NULL
         klm_dat
     }
-
+ 
+    met_specific_qds <- function(tm, normal_sample, primary_samples, met_samples) {
+        #browser()
+        message('QDS2')
+        #normal_sample <- grep('^N',rownames(dm),value=T)
+        subset_dm <- tm[c(normal_sample, primary_samples,met_samples),c(normal_sample,primary_samples,met_samples)]
+        subset_tree <- ape::nj(subset_dm)
+        subset_tree <- phytools::reroot(subset_tree, which(subset_tree$tip.label==normal_sample))
+        qds <- qds.2(subset_tree, ref_samples=primary_samples, test_samples=met_samples)
+        qds
+    }
+    
     distance_to_normal <- function(tm, normal_sample, primary_samples, met_samples) {
         ## given a distmatrix, return a data.table with the distance to normal for both the mets and the primaries 
         dm <- as.data.table(reshape2::melt(tm))
@@ -360,9 +444,10 @@ get_met_specific_distances <- function(si, ad_table, comparison, distance, retur
         } else if(length(valid_samples) < 3) { 
             #cat(' (Insufficient samples to construct tree)')
             out <- NULL
-        } else if(length(met_samples) < 1 & comparison %in% c('primary','rds')) {
+        } else if(length(met_samples) < 1 & comparison %in% c('primary','rds','qds')) {
             #cat(' (Insufficient mets for comparison)')
             out <- NULL
+
         } else { 
             smat <- mat[valid_samples, valid_samples]    
             tree <- ape::nj(smat)
@@ -386,7 +471,7 @@ get_met_specific_distances <- function(si, ad_table, comparison, distance, retur
             if(comparison=='pairwise' & distance!='angular') scaling_factor <- get_mean_overall_node_distance(distmatrix)          
             if(comparison=='pairwise' & distance=='angular') scaling_factor <- 1
             if(comparison=='all' & distance=='angular') scaling_factor <- 1
-            if(comparison=='rds') scaling_factor <- 1
+            if(comparison %in% c('rds','qds')) scaling_factor <- 1
 
             if(comparison=='normal') {
                 result <- distance_to_normal(distmatrix, normal_sample, primary_samples, met_samples)
@@ -409,9 +494,16 @@ get_met_specific_distances <- function(si, ad_table, comparison, distance, retur
             } else if(comparison=='rds') {
                 if(length(met_samples)==0) stop('No mets!')
                 result <- met_specific_rds(distmatrix, normal_sample, primary_samples, met_samples)
+            } else if(comparison=='qds') {
+                if(!(length(primary_samples) >= 2 & length(met_samples) >= 2)) {
+                    qds <- as.numeric(NA)
+                } else {
+                    qds <- met_specific_qds(distmatrix, normal_sample, primary_samples, met_samples)
+                }
+                result <- data.table(QDS=qds, type='Met')
             } 
 
-            if(comparison!='rds') {
+            if(!comparison %in% c('rds','qds')) {
                 result$sample1 <- as.character(result$sample1)
                 result$sample2 <- as.character(result$sample2)
                 result$group1 <- as.character(result$group1)
