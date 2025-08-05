@@ -2029,8 +2029,8 @@ d3[clonality=='CLONAL', clonality_3cati:=2]
 
 ## 'maf' will be our cleaned up mutation data
 maf <- d3[!ShortVariantID %in% bad_variants,]
-
-
+write_tsv(maf,here('processed_data/wes/C157_merged_filtered.ccf.oncokb.cleaned.maf'))
+          
 #######################
 # Step 5.
 # Save a distance matrix based on Euclidean distance 
@@ -2474,7 +2474,7 @@ fig_msg('ED Fig 2d')
 
 ## 2024-07-24
 dm_wes <- read_distance_matrix(here('processed_data/wes/ccf_distance_matrix_allsamples.txt'))
-dm_scna <- read_distance_matrix(here('processed_data/copynumber/C157/C157_cnv_distance_matrix.txt'))
+dm_scna <- read_distance_matrix(here('processed_data/copynumber/C157/C157_cnv_distance_matrix_precalculated.txt'))
 dm_polyg <- read_distance_matrix(here('processed_data/angular_distance_matrices/C157.txt'))
 
 ## plot 3 C157 trees unrooted
@@ -2519,6 +2519,8 @@ p2 <- p2 + geom_tiplab(aes(color=group), angle=1, size=3.5)
 
 p <- plot_grid(p0, p1, p2, nrow=1)
 ggsave(here('figures_and_tables/ed_fig_2d.pdf'),width=9, height=6)
+
+
 
 
 
@@ -2724,7 +2726,8 @@ run_sims <- function(i, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2) {
 
 RNGkind("L'Ecuyer-CMRG")
 set.seed(42)
-l <- mclapply(1:200, run_sims, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, mc.cores=4)
+num_cores <- detectCores()
+l <- mclapply(1:200, run_sims, gens_normal_to_mrca, gens_mrca_to_t1, gens_mrca_to_t2, mc.cores=round(num_cores*0.5))
 res <- rbindlist(l)
 res[,id:=paste0(sim,':',p2)]
 res[,pctdiff:=100*(ad - optimal)/optimal]
@@ -2754,7 +2757,6 @@ p <- ggplot(res2, aes(x=p1)) +
     theme(legend.position='bottom') +
     labs(x='Sample 1 purity (%)', y='Angular distance (% diff from optimal)',title='Supplementary Note Fig1')
 ggsave(here('figures_and_tables/supp_note_fig1.pdf'),width=10,height=3.5)
-
 
 
 
